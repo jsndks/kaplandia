@@ -1,0 +1,56 @@
+/docs
+    /js                                         /* Output of JavaScript documentation */
+
+/node_modules                                   /* Output of node modules needed for Grunt */
+
+/src
+    /assets
+         /media
+             /fonts
+             /images
+             /uploads
+        /scripts
+            /lib                                /* Custom libraries */
+                LogUtil.js                      /* Common utility functions */
+            /views
+                DemoView.js                     /* A demonstration view class */
+            App.js                              /* Application initialization */
+            config.js                           /* RequireJS configuration file */
+            main.js                             /* Main entry point */
+        /styles                                 /* Stylesheets */
+        /vendor                                 /* Output of bower modules */
+    /templates                                  /* Markup templates */
+    index.html                                  /* Index page */
+
+/tools
+    /cache                                      /* Nerdery-created Bower modules */
+    /node                                       /* Output of standalone Node/Bower/Grunt install */
+    /utils
+        curl.vbs                                /* Curl for Windows */
+        postinstall.js                          /* Copies npm modules to output directory */
+        unzip.vbs                               /* Unzip for Windows */
+    node-install.sh                             /* Mac/Linux local install script for Node/Bower/Grunt */
+    node-uninstall.sh                           /* Mac/Linux local uninstall script for Node/Bower/Grunt */
+    node-standalone-install.cmd                 /* Windows standalone install script for Node/Bower/Grunt */
+    node-standalone-uninstall.cmd               /* Windows standalone uninstall script for Node/Bower/Grunt */
+    node-standalone-install.sh                  /* Windows standalone install script for Node/Bower/Grunt */
+    node-standalone-uninstall.sh                /* Mac/Linux standalone uninstall script for Node/Bower/Grunt */
+
+/web                                            /* Output of built website */
+
+.bowerrc                                        /* Bower configuration. Defines bower output directory */
+.csslinrc                                       /* CSSLint style rules */
+.editorconfig                                   /* IDE style rules (see editorconfig.org) */
+.gitattributes                                  /* Settings for Git source control */
+.gitignore                                      /* Describes files ignored by Git source control */
+.jshintrc                                       /* JSHint style rules */
+.npmignore                                      /* Ignore settings to apply when this app is distributed as an NPM package*/
+bower.json                                      /* Bower packages this application depends on */
+build.cmd                                       /* Build script for Windows (runs grunt) */
+build.sh                                        /* Build script for Mac/Linux (runs grunt) */
+env.js                                          /* Global configuration constants (not to be committed) */
+env.js-dist                                     /* Gglobal configuration constants (template to be committed) */
+Gruntfile.js                                    /* Build tasks to be performed via `grunt` */
+manifest.txt                                    /* This file */
+package.json                                    /* NPM packages this application depends on */
+README.md                                       /* Steps for building the application */

@@ -1,0 +1,12 @@
+{
+  "name": "kaplandia",
+  "version": "",
+  "private": true,
+  "dependencies": {
+    "requirejs": "~2.1.9",
+    "jquery": "1.10.2",
+    "nerdery-function-bind": "./tools/cache/nerdery-function-bind",
+    "text": "~2.0.10"
+  },
+  "devDependencies": {}
+}

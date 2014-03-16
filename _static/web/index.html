@@ -1,14 +1,3 @@
-{#
- # Layout template
- # ---------------
- #
- # This template defines your site’s global layout. It can be
- # “extended” by other templates to fill in the gaps.
- #
- # See Twig’s Template Inheritance documentation for more details:
- # http://twig.sensiolabs.org/doc/templates.html#template-inheritance
- #}
-
 <!DOCTYPE html>
 <html class="no-js" lang="en-us">
 <head>
@@ -20,7 +9,7 @@
     <![endif]-->
 
     <!-- SEO -->
-    <title>{% if title is defined %}{{ title }} - {% endif %}{{ siteName }}</title>
+    <title>kaplandia</title>
     <meta name="description" content="" />
     <meta name="author" content="" />
 
@@ -29,30 +18,26 @@
     <link rel="apple-touch-icon" href="assets/media/images/apple-touch-icon.png" />
 
     <!-- STYLESHEETS -->
-    <link rel="stylesheet" media="screen, projection" href="{{ siteUrl }}_static/web/assets/styles/modern.css" />
+    <link rel="stylesheet" media="screen, projection" href="assets/styles/modern.css" />
     <!--[if lte IE 8]>
         <link rel="stylesheet" type="text/css" media="screen, projection" href="assets/styles/legacy.css" />
     <![endif]-->
 </head>
-
 <body>
     <!-- CONTENT -->
     <div class="site">
         <div class="site-hd" role="banner">
             <div class="logo">
-                <img src="{{ siteUrl }}_static/web/assets/media/images/logo.png" alt="" />
+                <img src="assets/media/images/logo.png" alt="" />
             </div>
         </div> <!-- /site-hd -->
 
         <div class="site-bd" role="main">
 
+            <svg id="js-rays" class="rays" preserveAspectRatio="xMinYMin meet" viewBox="0 0 600 600"></svg>
+
             <div style="width: 600px; margin: 0 auto; text-align: center; padding-top: 20px;">
-            	<main id="content" role="main">
-					{% block content %}
-						<p>If you see me, you haven’t set your <code>{% verbatim %}{% block content %}…{% endblock %}{% endverbatim %}</code> yet.</p>
-						<p>See Twig’s <a href="http://twig.sensiolabs.org/doc/templates.html#template-inheritance">Template Inheritance</a> documentation for an explanation.</p>
-					{% endblock %}
-				</main>
+                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Corporis inventore quae ipsa consectetur dolores obcaecati maxime doloremque ipsam modi sapiente.</p>
             </div>
 
             <ul class="scene js-scene" data-limit-y="0" data-scalar-x="20">
@@ -80,8 +65,8 @@
     </div> <!-- /site -->
 
     <!-- JAVASCRIPT -->
-    <script src="{{ siteUrl }}_static/web/assets/vendor/requirejs/require.js"></script>
-    <script src="{{ siteUrl }}_static/web/assets/scripts/config.js"></script>
+    <script src="assets/vendor/requirejs/require.js"></script>
+    <script src="assets/scripts/config.js"></script>
     <script>
         /**
          * Global constants
@@ -100,7 +85,7 @@
          * @type Boolean
          * @final
          */
-        SETTINGS.IS_PRODUCTION = false;
+        SETTINGS.IS_PRODUCTION = true;
 
         /**
          * Appended to query string for versioning of network resources (CSS,
@@ -141,7 +126,7 @@
          * @type String
          * @final
          */
-        SETTINGS.SCRIPT_PATH = '{{ siteUrl }}_static/web/assets/scripts/';
+        SETTINGS.SCRIPT_PATH = 'assets/scripts/';
 
         /**
          * Set any RequireJs configuration that is dependent on dynamic

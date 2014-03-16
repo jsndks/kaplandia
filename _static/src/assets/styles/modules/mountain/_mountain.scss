@@ -1,0 +1,37 @@
+/* ---------------------------------------------------------------------
+ Mountain
+------------------------------------------------------------------------ */
+.mountain {
+    position: absolute;
+    left: -25%;
+    bottom: 0;
+    width: 150%;
+    background-repeat: no-repeat;
+    background-size: 100% 50%;
+    background-position: center bottom;
+}
+
+.mountain_1 {
+    height: 413px;
+    background-image: url(../media/images/mount_01.png);
+}
+
+.mountain_2 {
+    height: 537px;
+    background-image: url(../media/images/mount_02.png);
+}
+
+.mountain_3 {
+    height: 559px;
+    background-image: url(../media/images/mount_03.png);
+}
+
+.mountain_4 {
+    height: 269px;
+    background-image: url(../media/images/mount_04.png);
+}
+
+.mountain_5 {
+    height: 289px;
+    background-image: url(../media/images/mount_05.png);
+}

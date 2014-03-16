@@ -1,0 +1,54 @@
+/* ---------------------------------------------------------------------
+ Base Elements
+------------------------------------------------------------------------ */
+html,
+body {
+    height: 100%;
+}
+
+body {
+    color: $COLOR_DARK_BROWN;
+    font: 14px/1.42857142857 'Arial', 'Helvetica', sans-serif; /* Line-height: 20/14 = 1.42857142857 */
+    // background-color: #c5b69b;
+    // background-image:  url(../media/images/lines.png),
+    // url(../media/images/texture.gif);
+    // background-repeat: no-repeat, repeat;
+    // background-size: 100%, auto;
+    // background-position: 50%;
+    background-image: url(../media/images/texture.gif);
+    background-repeat: repeat;
+    background-size: auto;
+}
+
+a {
+    color: $COLOR_PRIME_BLUE;
+    transition: color 0.25s ease;
+    text-decoration: none;
+}
+
+a:focus,
+a:hover {
+    color: $COLOR_MID_BLUE;
+}
+
+small {
+    color: $COLOR_LIGHT_BROWN;
+    font-weight: normal;
+    font-size: 11px;
+}
+
+p {
+    margin-bottom: 20px;
+}
+
+img {
+    max-width: 100%;
+}
+
+input[type="text"],
+input[type="password"] {
+    height: 18px;
+    padding: 1px 6px;
+    border: 1px solid $COLOR_PRIME_BLUE;
+    @include placholder($COLOR_MED_GRAY);
+}

@@ -1,0 +1,11 @@
+.idea/*
+.tmp/
+docs/
+node_modules/
+tools/node/
+web/
+._.DS_Store
+.DS_Store
+.*.swp
+env.js
+npm-debug.log
