@@ -111,12 +111,13 @@ html, body {
   height: 100%; }
 
 body {
-  color: #3f2021;
-  font: 14px/1.42857142857 'Arial', 'Helvetica', sans-serif;
+  color: #ffffff;
+  font: 16px/1.42857142857 "Courier New", Courier, monospace;
   /* Line-height: 20/14 = 1.42857142857 */
+  font-weight: bold;
   background-image: url(../media/images/texture.gif);
   background-repeat: repeat;
-  background-size: auto; }
+  background-attachment: fixed; }
 
 a {
   color: #009fdf;
@@ -156,11 +157,12 @@ input[type="text"], input[type="password"] {
  Scene
 ------------------------------------------------------------------------ */
 .scene {
-  position: absolute;
+  position: fixed;
   overflow: hidden;
   bottom: 0;
   width: 100%;
-  height: 300px; }
+  height: 300px;
+  z-index: 3; }
 
 /* ---------------------------------------------------------------------
  Mountain
@@ -175,23 +177,23 @@ input[type="text"], input[type="password"] {
   background-position: center bottom; }
 
 .mountain_1 {
-  height: 413px;
+  height: 206.5px;
   background-image: url(../media/images/mount_01.png); }
 
 .mountain_2 {
-  height: 537px;
+  height: 268.5px;
   background-image: url(../media/images/mount_02.png); }
 
 .mountain_3 {
-  height: 559px;
+  height: 279.5px;
   background-image: url(../media/images/mount_03.png); }
 
 .mountain_4 {
-  height: 269px;
+  height: 134.5px;
   background-image: url(../media/images/mount_04.png); }
 
 .mountain_5 {
-  height: 289px;
+  height: 144.5px;
   background-image: url(../media/images/mount_05.png); }
 
 /* ---------------------------------------------------------------------
@@ -201,7 +203,7 @@ input[type="text"], input[type="password"] {
   position: relative;
   width: 100%;
   text-align: center;
-  padding-top: 200px; }
+  margin-bottom: 32px; }
 
 .logo > img {
   width: 50%; }
@@ -210,17 +212,93 @@ input[type="text"], input[type="password"] {
  Rays
 ------------------------------------------------------------------------ */
 .rays {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 50%;
   width: 600px;
   height: 600px;
   margin-left: -300px;
-  -webkit-transform: scale(3) translate(0, 50px);
-  -moz-transform: scale(3) translate(0, 50px);
-  -ms-transform: scale(3) translate(0, 50px);
-  -o-transform: scale(3) translate(0, 50px);
-  transform: scale(3) translate(0, 50px); }
+  z-index: 0;
+  -webkit-transform: scale(1.5) translate(0, 150px);
+  -moz-transform: scale(1.5) translate(0, 150px);
+  -ms-transform: scale(1.5) translate(0, 150px);
+  -o-transform: scale(1.5) translate(0, 150px);
+  transform: scale(1.5) translate(0, 150px); }
+
+/* ---------------------------------------------------------------------
+ Cloud
+------------------------------------------------------------------------ */
+.cloudScene {
+  display: none;
+  position: fixed;
+  top: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 300px;
+  z-index: 0; }
+
+.cloud {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-size: 100% 50%;
+  background-position: center bottom;
+  opacity: 0.75; }
+
+.cloud_1 {
+  width: 822px;
+  height: 229px;
+  background-image: url(../media/images/cloud_01.png);
+  left: -50%;
+  top: -70px; }
+
+.cloud_2 {
+  top: 100px;
+  width: 522px;
+  height: 174px;
+  background-image: url(../media/images/cloud_02.png);
+  right: -25%; }
+
+/* ---------------------------------------------------------------------
+ Main Content Container
+------------------------------------------------------------------------ */
+.mainContent {
+  position: relative;
+  z-index: 2;
+  width: 80%;
+  margin: 0 auto; }
+
+/* ---------------------------------------------------------------------
+ Site
+------------------------------------------------------------------------ */
+.site {
+  padding-bottom: 300px; }
+
+.site-hd {
+  overflow: hidden;
+  margin-bottom: 24px; }
+
+/* ---------------------------------------------------------------------
+ Button
+------------------------------------------------------------------------ */
+.btn {
+  position: relative;
+  z-index: 3;
+  display: inline-block;
+  background-color: #d66508;
+  padding: 12px 52px;
+  color: #ffffff;
+  font-size: 12px;
+  text-transform: uppercase;
+  font-family: 'Poiret One', cursive;
+  font-weight: lighter; }
+
+.btn_left {
+  float: left;
+  margin-left: 24px; }
+
+.btn_right {
+  float: right;
+  margin-right: 24px; }
 
 @media screen and (min-width: 320px) {
   /* ---------------------------------------------------------------------
@@ -234,7 +312,48 @@ Width: Min-Width 320px
 Target Browsers: All
 Media Type: Screen, Projection
 Width: Min-Width 768px
------------------------------------------------------------------------- */ }
+------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Rays
+------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Cloud
+------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Logo
+------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Mountain
+------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Main Content Container
+------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Button
+------------------------------------------------------------------------ */
+  .rays {
+    -webkit-transform: scale(3) translate(0, 50px);
+    -moz-transform: scale(3) translate(0, 50px);
+    -ms-transform: scale(3) translate(0, 50px);
+    -o-transform: scale(3) translate(0, 50px);
+    transform: scale(3) translate(0, 50px); }
+  .cloudScene {
+    display: block; }
+  .mountain_1 {
+    height: 413px; }
+  .mountain_2 {
+    height: 537px; }
+  .mountain_3 {
+    height: 559px; }
+  .mountain_4 {
+    height: 269px; }
+  .mountain_5 {
+    height: 289px; }
+  .mainContent {
+    width: 60%; }
+  .btn {
+    padding: 2px 52px;
+    font-size: 32px; } }
 
 @media screen and (min-width: 1280px) {
   /* ---------------------------------------------------------------------

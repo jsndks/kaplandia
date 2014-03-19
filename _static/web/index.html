@@ -17,6 +17,9 @@
     <link rel="shortcut icon" type="image/ico" href="assets/media/images/favicon.ico" />
     <link rel="apple-touch-icon" href="assets/media/images/apple-touch-icon.png" />
 
+    <!-- FONTS -->
+    <link href='http://fonts.googleapis.com/css?family=Poiret+One' rel='stylesheet' type='text/css'>
+
     <!-- STYLESHEETS -->
     <link rel="stylesheet" media="screen, projection" href="assets/styles/modern.css" />
     <!--[if lte IE 8]>
@@ -27,18 +30,22 @@
     <!-- CONTENT -->
     <div class="site">
         <div class="site-hd" role="banner">
-            <div class="logo">
-                <img src="assets/media/images/logo.png" alt="" />
-            </div>
+            <a href="#" class="btn btn_left">Blog</a>
+            <a href="#" class="btn btn_right">Map</a>
         </div> <!-- /site-hd -->
 
         <div class="site-bd" role="main">
 
             <svg id="js-rays" class="rays" preserveAspectRatio="xMinYMin meet" viewBox="0 0 600 600"></svg>
 
-            <div style="width: 600px; margin: 0 auto; text-align: center; padding-top: 20px;">
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Corporis inventore quae ipsa consectetur dolores obcaecati maxime doloremque ipsam modi sapiente.</p>
-            </div>
+            <ul class="cloudScene js-cloudScene" data-limit-y="0" data-scalar-x="20">
+                <li class="layer" data-depth="0.40">
+                    <div class="cloud cloud_1"></div>
+                </li>
+                <li class="layer" data-depth="0.40">
+                    <div class="cloud cloud_2"></div>
+                </li>
+            </ul>
 
             <ul class="scene js-scene" data-limit-y="0" data-scalar-x="20">
                 <li class="layer" data-depth="0.20">
@@ -57,6 +64,16 @@
                     <div class="mountain mountain_5"></div>
                 </li>
             </ul>
+
+            <div class="mainContent">
+                <div class="logo">
+                    <img src="assets/media/images/logo.png" alt="" />
+                </div>
+
+                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Corporis inventore quae ipsa consectetur dolores obcaecati maxime doloremque ipsam modi sapiente.</p>
+
+            </div>
+
         </div> <!-- /site-bd -->
 
         <div class="site-ft" role="contentinfo">

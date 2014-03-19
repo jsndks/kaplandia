@@ -7,17 +7,12 @@ body {
 }
 
 body {
-    color: $COLOR_DARK_BROWN;
-    font: 14px/1.42857142857 'Arial', 'Helvetica', sans-serif; /* Line-height: 20/14 = 1.42857142857 */
-    // background-color: #c5b69b;
-    // background-image:  url(../media/images/lines.png),
-    // url(../media/images/texture.gif);
-    // background-repeat: no-repeat, repeat;
-    // background-size: 100%, auto;
-    // background-position: 50%;
+    color: #ffffff;
+    font: 16px/1.42857142857 "Courier New", Courier, monospace; /* Line-height: 20/14 = 1.42857142857 */
+    font-weight: bold;
     background-image: url(../media/images/texture.gif);
     background-repeat: repeat;
-    background-size: auto;
+    background-attachment: fixed;
 }
 
 a {

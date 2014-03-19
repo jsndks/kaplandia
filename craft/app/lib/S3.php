@@ -2090,6 +2090,8 @@ final class S3Request
 	*/
 	public function getResponse()
 	{
+		$followRedirects = false;
+
 		$query = '';
 		if (sizeof($this->parameters) > 0)
 		{
@@ -2177,7 +2179,13 @@ final class S3Request
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, false);
 		curl_setopt($curl, CURLOPT_WRITEFUNCTION, array(&$this, '__responseWriteCallback'));
 		curl_setopt($curl, CURLOPT_HEADERFUNCTION, array(&$this, '__responseHeaderCallback'));
-		curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+
+		// Handle open_basedir & safe mode
+		if (!ini_get('safe_mode') && !ini_get('open_basedir'))
+		{
+			$followRedirects = true;
+			curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+		}
 
 		// Request types
 		switch ($this->verb)
@@ -2218,6 +2226,25 @@ final class S3Request
 				'message' => curl_error($curl),
 				'resource' => $this->resource
 			);
+
+		if (!$followRedirects)
+		{
+			// work around not having CURLOPT_FOLLOWLOCATION
+			if ($this->response->code == '301' OR $this->response->code == '302')
+			{
+				static $redirect_count = 0;
+				if (++$redirect_count > 5)
+				{
+					throw new Exception('Redirect error for S3 library');
+				}
+
+				$info = curl_getinfo($curl);
+				if (!empty($info['redirect_url']))
+				{
+					return $this->getResponse($info['redirect_url']);
+				}
+			}
+		}
 
 		@curl_close($curl);
 

@@ -1,0 +1,25 @@
+/* ---------------------------------------------------------------------
+ Button
+------------------------------------------------------------------------ */
+.btn {
+    position: relative;
+    z-index: 3;
+    display: inline-block;
+    background-color: #d66508;
+    padding: 12px 52px;
+    color: #ffffff;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-family: 'Poiret One', cursive;
+    font-weight: lighter;
+}
+
+.btn_left {
+    float: left;
+    margin-left: 24px;
+}
+
+.btn_right {
+    float: right;
+    margin-right: 24px;
+}
