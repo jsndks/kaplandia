@@ -13,13 +13,13 @@ return array(
 	'server' => 'localhost',
 
 	// The database username to connect with.
-	'user' => 'root',
+	'user' => 'browney5_kaplan',
 
 	// The database password to connect with.
-	'password' => 'root',
+	'password' => 'bft98csQkNdX',
 
 	// The name of the database to select.
-	'database' => 'kaplandia',
+	'database' => 'browney5_kaplandia',
 
 	// The prefix to use when naming tables. This can be no more than 5 characters.
 	'tablePrefix' => 'craft',

@@ -1,0 +1,21 @@
+/* ---------------------------------------------------------------------
+ Utility Navigation
+------------------------------------------------------------------------ */
+.utilNav {
+    display: none;
+    overflow: hidden;
+    width: 100%;
+}
+
+.utilNav-item {
+    float: left;
+    width: 50%;
+}
+
+.utilNav-item > a {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    width: 100%;
+    text-align: center;
+}

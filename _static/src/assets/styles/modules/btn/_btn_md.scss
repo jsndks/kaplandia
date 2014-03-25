@@ -2,6 +2,17 @@
  Button
 ------------------------------------------------------------------------ */
 .btn {
-    padding: 2px 52px;
-    font-size: 32px;
+    padding: 13px 52px;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.btn_sub:before {
+    content: '- or -';
+    position: absolute;
+    font-size: 10px;
+    top: 19px;
+    left: -18px;
+    z-index: 1;
+    color: #ffffff;
 }

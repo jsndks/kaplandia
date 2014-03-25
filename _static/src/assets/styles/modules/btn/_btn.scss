@@ -10,16 +10,10 @@
     color: #ffffff;
     font-size: 12px;
     text-transform: uppercase;
-    font-family: 'Poiret One', cursive;
+    font-family: 'Josefin Sans', sans-serif;
     font-weight: lighter;
 }
 
-.btn_left {
-    float: left;
-    margin-left: 24px;
-}
-
-.btn_right {
-    float: right;
-    margin-right: 24px;
+.btn_first:after {
+    content: ' ';
 }

@@ -7,6 +7,7 @@ Width: All Sizes
 @import "base/_reset";
 @import "base/_elements";
 
+@import "modules/hdg/_hdg";
 @import "modules/scene/_scene";
 @import "modules/mountain/_mountain";
 @import "modules/logo/_logo";
@@ -15,3 +16,4 @@ Width: All Sizes
 @import "modules/mainContent/_mainContent";
 @import "modules/site/_site";
 @import "modules/btn/_btn";
+@import "modules/utilNav/_utilNav";

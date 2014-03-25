@@ -154,6 +154,14 @@ input[type="text"], input[type="password"] {
     color: #a59c94; }
 
 /* ---------------------------------------------------------------------
+ Logo
+------------------------------------------------------------------------ */
+
+.hdg_1 {
+  text-align: center;
+  margin-bottom: 24px; }
+
+/* ---------------------------------------------------------------------
  Scene
 ------------------------------------------------------------------------ */
 .scene {
@@ -203,7 +211,7 @@ input[type="text"], input[type="password"] {
   position: relative;
   width: 100%;
   text-align: center;
-  margin-bottom: 32px; }
+  margin-bottom: 150px; }
 
 .logo > img {
   width: 50%; }
@@ -289,16 +297,30 @@ input[type="text"], input[type="password"] {
   color: #ffffff;
   font-size: 12px;
   text-transform: uppercase;
-  font-family: 'Poiret One', cursive;
+  font-family: 'Josefin Sans', sans-serif;
   font-weight: lighter; }
 
-.btn_left {
-  float: left;
-  margin-left: 24px; }
+.btn_first:after {
+  content: ' '; }
 
-.btn_right {
-  float: right;
-  margin-right: 24px; }
+/* ---------------------------------------------------------------------
+ Utility Navigation
+------------------------------------------------------------------------ */
+.utilNav {
+  display: none;
+  overflow: hidden;
+  width: 100%; }
+
+.utilNav-item {
+  float: left;
+  width: 50%; }
+
+.utilNav-item > a {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  text-align: center; }
 
 @media screen and (min-width: 320px) {
   /* ---------------------------------------------------------------------
@@ -331,6 +353,9 @@ Width: Min-Width 768px
   /* ---------------------------------------------------------------------
  Button
 ------------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------------
+ Utility Navigation
+------------------------------------------------------------------------ */
   .rays {
     -webkit-transform: scale(3) translate(0, 50px);
     -moz-transform: scale(3) translate(0, 50px);
@@ -352,8 +377,25 @@ Width: Min-Width 768px
   .mainContent {
     width: 60%; }
   .btn {
-    padding: 2px 52px;
-    font-size: 32px; } }
+    padding: 13px 52px;
+    font-size: 22px;
+    line-height: 1; }
+  .btn_sub:before {
+    content: '- or -';
+    position: absolute;
+    font-size: 10px;
+    top: 19px;
+    left: -18px;
+    z-index: 1;
+    color: #ffffff; }
+  .utilNav {
+    display: none;
+    float: right;
+    width: auto; }
+  .utilNav-item {
+    width: auto; }
+  .utilNav-item > a {
+    width: auto; } }
 
 @media screen and (min-width: 1280px) {
   /* ---------------------------------------------------------------------
