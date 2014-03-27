@@ -3,15 +3,16 @@ define(function(require, exports, module) {
 
     var $ = require('jquery');
     var Snap = require('snap');
-    var RAY_QUANT = 35;
+    var RAY_QUANT = 45;
     var RADIUS = 200;
-    var RADIUS_VARIENT = .50;
+    var RADIUS_VARIENT = .6;
     var ROTATE_SPEED = 70000;
-    var RAY_SPEED = 2000;
-    var FILL_COLOR = 'rgba(190, 161, 137, .5)';
-    var STROKE_COLOR = 'rgba(190, 161, 137, .5)';
-    var STROKE_WIDTH = 2;
-    var RAY_EASE = mina.bounce;
+    var RAY_SPEED = 4000;
+    var FILL_COLOR = 'rgba(199, 169, 139, 1)';
+    var STROKE_COLOR = 'rgba(199, 169, 139, 1)';
+    var STROKE_WIDTH = 1.5;
+    var RAY_EASE = mina.easeinout;
+    var RAY_FREEQUENCY = .06;
 
     /**
      * Animates the vector rays visually
@@ -180,10 +181,6 @@ define(function(require, exports, module) {
     };
 
     //////////////////////////////////////////////////////////////////////////////////
-    // EVENT HANDLERS
-    //////////////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////////////
     // HELPER METHODS
     //////////////////////////////////////////////////////////////////////////////////
 
@@ -235,7 +232,7 @@ define(function(require, exports, module) {
      */
     proto.draw = function(lineCoords) {
         var line = this.paper.line(this.centerX, this.centerY, lineCoords.lineX2, lineCoords.lineY2);
-        var circ = this.paper.circle(lineCoords.lineX2, lineCoords.lineY2, 5);
+        var circ = this.paper.circle(lineCoords.lineX2, lineCoords.lineY2, 3);
         var rayGroup = this.paper.group(line, circ).attr({
             'fill': FILL_COLOR,
             'stroke': STROKE_COLOR,
@@ -255,7 +252,7 @@ define(function(require, exports, module) {
      */
     proto.animateRay = function(group) {
         // var raySpeed = Math.random() * RAY_SPEED;
-        var raySpeed = Math.random() * (ROTATE_SPEED * .15);
+        var raySpeed = Math.random() * (ROTATE_SPEED * RAY_FREEQUENCY);
         var line = group[0];
         var circ = group[1];
         var self = this;
@@ -267,7 +264,7 @@ define(function(require, exports, module) {
                     y1: self.centerX,
                     x2: group.lineCoords.lineX2,
                     y2: group.lineCoords.lineY2
-                }, RAY_SPEED, mina.bounce, self.animateRay.bind(self, group));
+                }, RAY_SPEED, RAY_EASE, self.animateRay.bind(self, group));
 
                 circ.animate({
                     cx: group.lineCoords.lineX2,

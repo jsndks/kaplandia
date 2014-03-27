@@ -56,7 +56,7 @@
         <div class="site-hd" role="banner">
             <ul class="utilNav">
                 <li class="utilNav-item">
-                    <a href="#" class="btn">Blog</a>
+                    <a href="{{ url('blog') }}" class="btn">Blog</a>
                 </li>
                 <li class="utilNav-item">
                     <a href="#" class="btn btn_sub">Map</a>
@@ -95,9 +95,9 @@
             </ul>
 
             <div class="mainContent">
-                <div class="logo">
+                <a href="{{ siteUrl }}" class="logo">
                     <img src="{{ siteUrl }}_static/web/assets/media/images/logo.png" alt="" />
-                </div>
+                </a>
 
                 {% block content %}
                     <p>If you see me, you haven’t set your <code>{% verbatim %}{% block content %}…{% endblock %}{% endverbatim %}</code> yet.</p>

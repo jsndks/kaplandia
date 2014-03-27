@@ -209,6 +209,7 @@ input[type="text"], input[type="password"] {
 ------------------------------------------------------------------------ */
 .logo {
   position: relative;
+  display: block;
   width: 100%;
   text-align: center;
   margin-bottom: 150px; }
@@ -307,7 +308,6 @@ input[type="text"], input[type="password"] {
  Utility Navigation
 ------------------------------------------------------------------------ */
 .utilNav {
-  display: none;
   overflow: hidden;
   width: 100%; }
 
@@ -389,7 +389,6 @@ Width: Min-Width 768px
     z-index: 1;
     color: #ffffff; }
   .utilNav {
-    display: none;
     float: right;
     width: auto; }
   .utilNav-item {
