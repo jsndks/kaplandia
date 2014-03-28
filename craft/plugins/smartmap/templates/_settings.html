@@ -1,0 +1,49 @@
+{% import '_includes/forms' as forms %}
+
+{% set getApiKey = 'https://developers.google.com/maps/documentation/javascript/tutorial#api_key' %}
+
+<h2>Documentation has moved...</h2>
+
+<p>In order to keep things clean and legible, we've moved the documentation into the <a href="https://github.com/lindseydiloreto/craft-smartmap/wiki" target="_blank">GitHub wiki</a>.</p>
+
+<h2>Feedback?</h2>
+
+<p>Contact me on Twitter: <a href="https://twitter.com/LindseyDiLoreto" target="_blank">@LindseyDiLoreto</a></p>
+
+<p>All questions, comments, and suggestions are welcome!</p>
+
+
+{#
+<p>A tab will appear at the top of the control panel, allowing you easy access to documentation.</p>
+
+{{ forms.lightswitchField({
+    id:     "showDocs",
+    name:   "showDocs",
+    on:     settings.showDocs,
+    onLabel: "Show"|t,
+    offLabel: "Hide"|t,
+    errors: settings.getErrors('showDocs'),
+}) }}
+
+<p>Or you can view the documentation without enabling the tab. <a href="{{ url('smartmap') }}">Read docs...</a></p>
+#}
+
+
+{#
+<hr />
+
+<p>In order to use this plugin, you'll need your own Google API Key.</p>
+
+<h2>Where can I get an API Key?</h2>
+<p>Getting an API key is easy! Simply <a href="{{ getApiKey }}" target="_blank">follow the instructions found here...</a></p>
+
+{{ forms.textField({
+	label: "API Key"|t,
+	id: 'apiKey',
+	name: 'apiKey',
+	instructions: "Enter your Google Maps API key:"|t,
+	value: settings.apiKey,
+	autofocus: true,
+	errors: settings.getErrors('apiKey')
+}) }}
+#}

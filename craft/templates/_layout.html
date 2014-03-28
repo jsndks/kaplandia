@@ -46,8 +46,11 @@
 
       ga('create', 'UA-43682517-1', 'kaplandia.com');
       ga('send', 'pageview');
-
     </script>
+
+    <!-- MAPBOX - TMP -->
+    <script src='https://api.tiles.mapbox.com/mapbox.js/v1.6.2/mapbox.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox.js/v1.6.2/mapbox.css' rel='stylesheet' />
 </head>
 
 <body>
@@ -59,7 +62,7 @@
                     <a href="{{ url('blog') }}" class="btn">Blog</a>
                 </li>
                 <li class="utilNav-item">
-                    <a href="#" class="btn btn_sub">Map</a>
+                    <a href="{{ url('map') }}" class="btn btn_sub">Map</a>
                 </li>
             </ul>
         </div> <!-- /site-hd -->

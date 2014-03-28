@@ -1,0 +1,46 @@
+{#
+ # Homepage template
+ # ---------------
+ #
+ # When this template gets loaded, it will be because someone has accessed
+ # http://yoursite.com/ (without any URI). Craft checks to see if you have
+ # a Single section set to be the Homepage (as you do, by default), and
+ # loads the section’s Template (this file). A special ‘entry’ variable
+ # will already be set for you, assigned to the Homepage entry.
+ #
+ # It's worth noting that even if you didn't have a Homepage Single section,
+ # as long as this template remains at craft/templates/index.html, it
+ # would still be the one to get loaded when accessing http://yoursite.com/,
+ # albeit without an ‘entry’ variable already set for you.
+ #
+ # See this page for more details on how Craft routes requests:
+ # http://buildwithcraft.com/docs/routing
+ #}
+
+{% extends "_layout" %}
+
+{% block content %}
+	<h2 class="hdg hdg_1">{{ entry.title }}</h2>
+    {{ entry.body }}
+
+    {% set locations = craft.entries.section('pins').find() %}
+	{% set options = {
+	    'zoom': 4,
+	    'height': 450
+	} %}
+    {{ craft.smartMap.map(locations, options) }}
+
+    {% for entry in craft.entries.section('pins').find() %}
+	    <h1>{{ entry.title }}</h1>
+	    <div>
+	        {{ entry.mapPin.street1 }}<br />
+	        {{ entry.mapPin.street2 }}<br />
+	        {{ entry.mapPin.city }}, {{ entry.mapPin.state }} {{ entry.mapPin.zip }}<br>
+	    </div>
+	    <div>
+	        Latitude: {{ entry.mapPin.lat }}<br />
+	        Longitude: {{ entry.mapPin.lng }}
+	    </div>
+	{% endfor %}
+
+{% endblock %}
