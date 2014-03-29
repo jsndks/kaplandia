@@ -20,15 +20,52 @@
 {% extends "_layout" %}
 
 {% block content %}
-	<h2 class="hdg hdg_1">{{ entry.title }}</h2>
-    {{ entry.body }}
+<svg id="js-rays" class="rays" preserveAspectRatio="xMinYMin meet" viewBox="0 0 600 600"></svg>
 
-	<!--
-	<h2>Recent News</h2>
-	<ul>
-		{% for entry in craft.entries.section('news').limit(5).find() %}
-			<li><a href="{{ entry.url }}">{{ entry.title }}</a></li>
-		{% endfor %}
-	</ul>
-	-->
+<ul class="cloudScene js-cloudScene" data-limit-y="0" data-scalar-x="20">
+    <li class="layer" data-depth="0.40">
+        <div class="cloud cloud_1"></div>
+    </li>
+    <li class="layer" data-depth="0.40">
+        <div class="cloud cloud_2"></div>
+    </li>
+</ul>
+
+<ul class="scene js-scene" data-limit-y="0" data-scalar-x="20">
+    <li class="layer" data-depth="0.20">
+        <div class="mountain mountain_1"></div>
+    </li>
+    <li class="layer" data-depth="0.40">
+        <div class="mountain mountain_2"></div>
+    </li>
+    <li class="layer" data-depth="0.60">
+        <div class="mountain mountain_3"></div>
+    </li>
+    <li class="layer" data-depth="0.80">
+        <div class="mountain mountain_4"></div>
+    </li>
+    <li class="layer" data-depth="1.00">
+        <div class="mountain mountain_5"></div>
+    </li>
+</ul>
+
+<div class="mainContent">
+    <a href="{{ siteUrl }}" class="logo">
+        <img src="{{ siteUrl }}_static/web/assets/media/images/logo.png" alt="" />
+    </a>
+
+
+		<h2 class="hdg hdg_1">{{ entry.title }}</h2>
+	    {{ entry.body }}
+
+		<!--
+		<h2>Recent News</h2>
+		<ul>
+			{% for entry in craft.entries.section('news').limit(5).find() %}
+				<li><a href="{{ entry.url }}">{{ entry.title }}</a></li>
+			{% endfor %}
+		</ul>
+		-->
+
+</div>
 {% endblock %}

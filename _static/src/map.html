@@ -1,14 +1,3 @@
-{#
- # Layout template
- # ---------------
- #
- # This template defines your site’s global layout. It can be
- # “extended” by other templates to fill in the gaps.
- #
- # See Twig’s Template Inheritance documentation for more details:
- # http://twig.sensiolabs.org/doc/templates.html#template-inheritance
- #}
-
 <!DOCTYPE html>
 <html class="no-js" lang="en-us">
 <head>
@@ -20,66 +9,55 @@
     <![endif]-->
 
     <!-- SEO -->
-    <title>{% if title is defined %}{{ title }} - {% endif %}{{ siteName }}</title>
+    <title>kaplandia</title>
     <meta name="description" content="" />
     <meta name="author" content="" />
 
     <!-- ICONS -->
-    <link rel="shortcut icon" type="image/ico" href="{{ siteUrl }}_static/web/assets/media/images/favicon.ico" />
-    <link rel="apple-touch-icon" href="{{ siteUrl }}_static/web/assets/media/images/apple-touch-icon.png" />
+    <link rel="shortcut icon" type="image/ico" href="assets/media/images/favicon.ico" />
+    <link rel="apple-touch-icon" href="assets/media/images/apple-touch-icon.png" />
 
     <!-- FONTS -->
     <link href='http://fonts.googleapis.com/css?family=Josefin+Sans' rel='stylesheet' type='text/css'>
 
     <!-- STYLESHEETS -->
-    <link rel="stylesheet" media="screen, projection" href="{{ siteUrl }}_static/web/assets/styles/modern.css" />
+    <link rel="stylesheet" media="screen, projection" href="assets/styles/modern.css" />
     <!--[if lte IE 8]>
-        <link rel="stylesheet" type="text/css" media="screen, projection" href="{{ siteUrl }}_static/web/assets/styles/legacy.css" />
+        <link rel="stylesheet" type="text/css" media="screen, projection" href="assets/styles/legacy.css" />
     <![endif]-->
-
-    <!-- ANALYTICS -->
-    <script>
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-
-      ga('create', 'UA-43682517-1', 'kaplandia.com');
-      ga('send', 'pageview');
-    </script>
 
     <!-- MAPBOX - TMP -->
     <script src='https://api.tiles.mapbox.com/mapbox.js/v1.6.2/mapbox.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox.js/v1.6.2/mapbox.css' rel='stylesheet' />
 </head>
-
 <body>
     <!-- CONTENT -->
     <div class="site">
         <div class="site-hd" role="banner">
             <ul class="utilNav">
                 <li class="utilNav-item">
-                    <a href="{{ url('blog') }}" class="btn">Blog</a>
+                    <a href="#" class="btn">Blog</a>
                 </li>
                 <li class="utilNav-item">
-                    <a href="{{ url('map') }}" class="btn btn_sub">Map</a>
+                    <a href="#" class="btn btn_sub">Map</a>
                 </li>
             </ul>
         </div> <!-- /site-hd -->
 
         <div class="site-bd" role="main">
-            {% block content %}
-                <p>If you see me, you haven’t set your <code>{% verbatim %}{% block content %}…{% endblock %}{% endverbatim %}</code> yet.</p>
-                <p>See Twig’s <a href="http://twig.sensiolabs.org/doc/templates.html#template-inheritance">Template Inheritance</a> documentation for an explanation.</p>
-            {% endblock %}
+
+            <div id="map" class="dark"></div>
+
         </div> <!-- /site-bd -->
 
-        <div class="site-ft" role="contentinfo"></div> <!-- /site-ft -->
+        <div class="site-ft" role="contentinfo">
+
+        </div> <!-- /site-ft -->
     </div> <!-- /site -->
 
     <!-- JAVASCRIPT -->
-    <script src="{{ siteUrl }}_static/web/assets/vendor/requirejs/require.js"></script>
-    <script src="{{ siteUrl }}_static/web/assets/scripts/config.js"></script>
+    <script src="assets/vendor/requirejs/require.js"></script>
+    <script src="assets/scripts/config.js"></script>
     <script>
         /**
          * Global constants
@@ -139,7 +117,7 @@
          * @type String
          * @final
          */
-        SETTINGS.SCRIPT_PATH = '{{ siteUrl }}_static/web/assets/scripts/';
+        SETTINGS.SCRIPT_PATH = 'assets/scripts/';
 
         /**
          * Set any RequireJs configuration that is dependent on dynamic

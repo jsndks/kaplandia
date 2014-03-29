@@ -322,6 +322,15 @@ input[type="text"], input[type="password"] {
   width: 100%;
   text-align: center; }
 
+/* ---------------------------------------------------------------------
+ MapBox
+------------------------------------------------------------------------ */
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%; }
+
 @media screen and (min-width: 320px) {
   /* ---------------------------------------------------------------------
 Target Browsers: All

@@ -20,6 +20,25 @@
 {% extends "_layout" %}
 
 {% block content %}
+
+	{% set locations = craft.entries.section('pins').find() %}
+
+	<ul class="locations">
+		{% for location in locations %}
+		    <li data-title="{{location}}" data-lat="{{location.mapPin.lat}}" data-lng="{{location.mapPin.lng}}">
+		    	<span class="title">{{location}}</span>
+				<ul class="posts">
+					{% for related in location.relatedPost %}
+					<li>{{ related.getLink() }}</li>
+					{% endfor %}
+				</ul>
+	    	</li>
+		{% endfor %}
+	</ul>
+
+	<div id="map" class="dark"></div>
+
+	{#
 	<h2 class="hdg hdg_1">{{ entry.title }}</h2>
     {{ entry.body }}
 
@@ -42,5 +61,6 @@
 	        Longitude: {{ entry.mapPin.lng }}
 	    </div>
 	{% endfor %}
+	#}
 
 {% endblock %}
