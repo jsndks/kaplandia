@@ -114,6 +114,21 @@ module.exports = function(grunt) {
             }
         },
 
+        handlebars: {
+            compile: {
+                options: {
+                    amd: true,
+                    namespace: 'Kap.Templates',
+                    processName: function(filePath) {
+                        return filePath.replace(/^src\/templates\//, '').replace(/\.hbs$/, '');
+                    }
+                },
+                files: {
+                    '<%= env.DIR_SRC %>/assets/scripts/utils/templates.js': ['<%= env.DIR_SRC %>/templates/*.hbs']
+                }
+            }
+        },
+
         // YUIDoc plugin that will generate our JavaScript documentation.
         yuidoc: {
             compile: {
@@ -194,7 +209,7 @@ module.exports = function(grunt) {
             },
             markup: {
                 files: ['<%= env.DIR_SRC %>/**/*.html'],
-                tasks: ['markup']
+                tasks: ['handlebars', 'markup']
             },
             styles: {
                 files: [
@@ -332,7 +347,7 @@ module.exports = function(grunt) {
     });
 
     // Default task. Run with `grunt`.
-    grunt.registerTask('default', ['sass', 'lint', 'build', 'watch']);
+    grunt.registerTask('default', ['handlebars', 'sass', 'lint', 'build', 'watch']);
 
     // Install task. Handles tasks that should happen right after npm and bower
     // modules are installed or updated. Run with `grunt install`.

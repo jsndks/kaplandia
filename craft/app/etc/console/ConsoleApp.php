@@ -55,7 +55,17 @@ class ConsoleApp extends \CConsoleApplication
 		// Validate some basics on the database configuration file.
 		craft()->validateDbConfigFile();
 
+		// Call parent::init before the plugin console command logic so craft()->commandRunner will be available to us.
 		parent::init();
+
+		foreach (craft()->plugins->getPlugins() as $plugin)
+		{
+			$commandsPath = craft()->path->getPluginsPath().StringHelper::toLowerCase($plugin->getClassHandle()).'/consolecommands/';
+			if (IOHelper::folderExists($commandsPath))
+			{
+				craft()->commandRunner->addCommands(rtrim($commandsPath, '/'));
+			}
+		}
 	}
 
 	/**

@@ -11,12 +11,24 @@
 {% extends "_layout" %}
 {% set title = entry.title %}
 
-{% block content %}
-	<div class="intro">
-		<p>Written by {{ entry.author }} on {{ entry.postDate|date('M d, Y') }}</p>
-	</div>
 
-	<article class="pane">
-		<p>{{ entry.body }}</p>
-	</article>
+{% block content %}
+    <div class="mainContent">
+        <div class="blogListing">
+            <article class="blogPreview">
+                <h2 class="hdg hdg_2">
+                    <a href="{{ blogPost.url }}">{{ entry.title }}</a>
+                </h2>
+                <p>By {{ entry.author }} -- {{ entry.postDate|date('M d, Y') }}</p>
+
+                {% if entry.image | length %}
+                    {% for asset in entry.image %}
+                        <div class="imgPreview" style="background-image: url({{ asset.url }})"></div>
+                    {% endfor %}
+                {% endif %}
+
+                {{ entry.body }}
+            </article>
+        </div>
+    </div>
 {% endblock %}

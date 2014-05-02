@@ -10,8 +10,8 @@
 
 (function($) {
 
-Craft.UpdatesWidget = Garnish.Base.extend({
-
+Craft.UpdatesWidget = Garnish.Base.extend(
+{
 	$widget: null,
 	$body: null,
 	$btn: null,
@@ -99,6 +99,9 @@ Craft.UpdatesWidget = Garnish.Base.extend({
 
 			this.initBtn();
 		}
+
+		// Update the CP header badge
+		Craft.cp.displayUpdateInfo(info);
 	}
 });
 

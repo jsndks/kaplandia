@@ -19,11 +19,12 @@ namespace Craft;
 class AppBehavior extends BaseBehavior
 {
 	private $_isInstalled;
+	private $_isLocalized;
 	private $_info;
 	private $_siteName;
 	private $_siteUrl;
 	private $_isDbConfigValid = false;
-	private $_packageList = array('Users', 'PublishPro', 'Localize', 'Cloud', 'Rebrand');
+	private $_isDbConnectionValid = false;
 
 	/**
 	 * Determines if Craft is installed by checking if the info table exists.
@@ -40,7 +41,7 @@ class AppBehavior extends BaseBehavior
 				if (craft()->getComponent('db'))
 				{
 					// If the db config isn't valid, then we'll assume it's not installed.
-					if (!craft()->db->isDbConnectionValid())
+					if (!craft()->getIsDbConnectionValid())
 					{
 						return false;
 					}
@@ -68,6 +69,21 @@ class AppBehavior extends BaseBehavior
 	{
 		// If you say so!
 		$this->_isInstalled = true;
+	}
+
+	/**
+	 * Returns whether this site has multiple locales.
+	 *
+	 * @return bool
+	 */
+	public function isLocalized()
+	{
+		if (!isset($this->_isLocalized))
+		{
+			$this->_isLocalized = ($this->getEdition() == Craft::Pro && count(craft()->i18n->getSiteLocales()) > 1);
+		}
+
+		return $this->_isLocalized;
 	}
 
 	/**
@@ -121,93 +137,135 @@ class AppBehavior extends BaseBehavior
 	}
 
 	/**
-	 * Returns the packages in this Craft install, as defined in the craft_info table.
+	 * Returns the Craft edition.
 	 *
-	 * @return array|null
+	 * @return int
 	 */
-	public function getPackages()
+	public function getEdition()
 	{
-		return $this->getInfo('packages');
+		return $this->getInfo('edition');
 	}
 
 	/**
-	 * Returns whether a package is included in this Craft build.
+	 * Returns the name of the Craft edition.
 	 *
-	 * @param $packageName
-	 * @return bool
+	 * @return string
 	 */
-	public function hasPackage($packageName)
+	public function getEditionName()
 	{
-		return in_array($packageName, $this->getPackages());
+		return AppHelper::getEditionName($this->getEdition());
 	}
 
 	/**
-	 * Requires that a given package is installed.
+	 * Returns the edition Craft is actually licensed to run in.
 	 *
-	 * @param string $packageName
-	 * @throws Exception
+	 * @return int|null
 	 */
-	public function requirePackage($packageName)
+	public function getLicensedEdition()
 	{
-		if ($this->isInstalled() && !$this->hasPackage($packageName))
+		$licensedEdition = craft()->cache->get('licensedEdition');
+
+		if ($licensedEdition !== false)
 		{
-			throw new Exception(Craft::t('The {package} package is required to perform this action.', array(
-				'package' => Craft::t($packageName)
-			)));
+			return $licensedEdition;
 		}
 	}
 
 	/**
-	 * Installs a package.
+	 * Returns the name of the edition Craft is actually licensed to run in.
 	 *
-	 * @param string $packageName
-	 * @throws Exception
+	 * @return string|null
+	 */
+	public function getLicensedEditionName()
+	{
+		$licensedEdition = $this->getLicensedEdition();
+
+		if ($licensedEdition !== null)
+		{
+			return AppHelper::getEditionName($licensedEdition);
+		}
+	}
+
+	/**
+	 * Returns whether Craft is running with the wrong edition.
+	 *
 	 * @return bool
 	 */
-	public function installPackage($packageName)
+	public function hasWrongEdition()
 	{
-		$this->_validatePackageName($packageName);
+		$licensedEdition = $this->getLicensedEdition();
+		return ($licensedEdition !== null && $licensedEdition != $this->getEdition() && !$this->canTestEditions());
+	}
 
-		if ($this->hasPackage($packageName))
-		{
-			throw new Exception(Craft::t('The {package} package is already installed.', array(
-				'package' => Craft::t($packageName)
-			)));
-		}
-
-		$installedPackages = $this->getPackages();
-		$installedPackages[] = $packageName;
-
+	/**
+	 * Sets the Craft edition.
+	 *
+	 * @param int $edition
+	 * @return bool
+	 */
+	public function setEdition($edition)
+	{
 		$info = $this->getInfo();
-		$info->packages = $installedPackages;
+		$info->edition = $edition;
 		return $this->saveInfo($info);
 	}
 
 	/**
-	 * Uninstalls a package.
+	 * Requires that Craft is running an equal or better edition than what's passed in
 	 *
-	 * @param string $packageName
+	 * @param int $edition
+	 * @param bool $orBetter
 	 * @throws Exception
+	 */
+	public function requireEdition($edition, $orBetter = true)
+	{
+		if ($this->isInstalled())
+		{
+			$installedEdition = $this->getEdition();
+
+			if (($orBetter && $installedEdition < $edition) || (!$orBetter && $installedEdition != $edition))
+			{
+				throw new Exception(Craft::t('Craft {edition} is required to perform this action.', array(
+					'edition' => AppHelper::getEditionName($edition)
+				)));
+			}
+		}
+	}
+
+	/**
+	 * Returns whether Craft is elligible to be upgraded to a different edition.
+	 *
 	 * @return bool
 	 */
-	public function uninstallPackage($packageName)
+	public function canUpgradeEdition()
 	{
-		$this->_validatePackageName($packageName);
-
-		if (!$this->hasPackage($packageName))
+		// Only admins can upgrade Craft
+		if (craft()->userSession->isAdmin())
 		{
-			throw new Exception(Craft::t('The {package} package isn’t installed.', array(
-				'package' => Craft::t($packageName)
-			)));
+			// If they're running on a testable domain, go for it
+			if ($this->canTestEditions())
+			{
+				return true;
+			}
+
+			// Base this off of what they're actually licensed to use, not what's currently running
+			$licensedEdition = $this->getLicensedEdition();
+			return ($licensedEdition !== null && $licensedEdition < Craft::Pro);
 		}
+		else
+		{
+			return false;
+		}
+	}
 
-		$installedPackages = $this->getPackages();
-		$index = array_search($packageName, $installedPackages);
-		array_splice($installedPackages, $index, 1);
-
-		$info = $this->getInfo();
-		$info->packages = $installedPackages;
-		return $this->saveInfo($info);
+	/**
+	 * Returns whether Craft is running on a domain that is elligible to test out the editions.
+	 *
+	 * @return bool
+	 */
+	public function canTestEditions()
+	{
+		return (craft()->cache->get('editionTestableDomain@'.craft()->request->getHostName()) == 1);
 	}
 
 	/**
@@ -236,31 +294,46 @@ class AppBehavior extends BaseBehavior
 	{
 		if (!isset($this->_siteUrl))
 		{
-			if (defined('CRAFT_SITE_URL'))
+			// Start by checking the config
+			$siteUrl = craft()->config->getLocalized('siteUrl');
+
+			if (!$siteUrl)
 			{
-				$siteUrl = CRAFT_SITE_URL;
-			}
-			else
-			{
-				$siteUrl = $this->getInfo('siteUrl');
+				if (defined('CRAFT_SITE_URL'))
+				{
+					$siteUrl = CRAFT_SITE_URL;
+				}
+				else
+				{
+					$siteUrl = $this->getInfo('siteUrl');
+				}
+
+				if ($siteUrl)
+				{
+					// Parse it for environment variables
+					$siteUrl = craft()->config->parseEnvironmentString($siteUrl);
+				}
+				else
+				{
+					// Figure it out for ourselves, then
+					$siteUrl = craft()->request->getBaseUrl(true);
+				}
 			}
 
-			if ($siteUrl)
-			{
-				// Parse it for environment variables
-				$siteUrl = craft()->config->parseEnvironmentString($siteUrl);
-			}
-			else
-			{
-				// Figure it out for ourselves, then
-				$siteUrl = craft()->request->getBaseUrl(true);
-			}
-
-			// Make sure it ends in a slash
-			$this->_siteUrl = rtrim($siteUrl, '/').'/';
+			$this->setSiteUrl($siteUrl);
 		}
 
 		return UrlHelper::getUrlWithProtocol($this->_siteUrl, $protocol);
+	}
+
+	/**
+	 * Sets the site URL, while ensuring that the given URL ends with a trailing slash.
+	 *
+	 * @param string $siteUrl
+	 */
+	public function setSiteUrl($siteUrl)
+	{
+		$this->_siteUrl = rtrim($siteUrl, '/').'/';
 	}
 
 	/**
@@ -460,6 +533,42 @@ class AppBehavior extends BaseBehavior
 	}
 
 	/**
+	 * Don't even think of moving this check into DbConnection->init().
+	 *
+	 * @return bool
+	 */
+	public function getIsDbConnectionValid()
+	{
+		return $this->_isDbConnectionValid;
+	}
+
+	/**
+	 * Don't even think of moving this check into DbConnection->init().
+	 *
+	 * @param $value
+	 */
+	public function setIsDbConnectionValid($value)
+	{
+		$this->_isDbConnectionValid = $value;
+	}
+
+	// Deprecated methods
+
+	/**
+	 * Returns whether a package is included in this Craft build.
+	 *
+	 * @param $packageName
+	 * @return bool
+	 * @deprecated Deprecated in 2.0
+	 */
+	public function hasPackage($packageName)
+	{
+		return $this->getEdition() == Craft::Pro;
+	}
+
+	// Private methods
+
+	/**
 	 * Enables or disables Maintenance Mode
 	 *
 	 * @access private
@@ -471,21 +580,5 @@ class AppBehavior extends BaseBehavior
 		$info = $this->getInfo();
 		$info->maintenance = $value;
 		return $this->saveInfo($info);
-	}
-
-	/**
-	 * Validates a package name.
-	 *
-	 * @access private
-	 * @throws Exception
-	 */
-	private function _validatePackageName($packageName)
-	{
-		if (!in_array($packageName, $this->_packageList))
-		{
-			throw new Exception(Craft::t('Craft doesn’t have a package named “{package}”', array(
-				'package' => Craft::t($packageName)
-			)));
-		}
 	}
 }

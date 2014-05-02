@@ -23,10 +23,12 @@ class GetHelpModel extends BaseModel
 	protected function defineAttributes()
 	{
 		return array(
-			'fromEmail'        => array(AttributeType::Email, 'required' => true),
+			'fromEmail'        => array(AttributeType::Email, 'required' => true, 'label' => 'Your Email'),
 			'message'          => array(AttributeType::String, 'required' => true),
-			'attachDebugFiles' => array(AttributeType::Bool),
-			'attachment'       => array(AttributeType::Mixed),
+			'attachLogs'       => AttributeType::Bool,
+			'attachDbBackup'   => AttributeType::Bool,
+			'attachTemplates'  => AttributeType::Bool,
+			'attachment'       => AttributeType::Mixed,
 		);
 	}
 

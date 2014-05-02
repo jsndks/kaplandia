@@ -25,7 +25,7 @@ class ModelHelper
 	public static $attributeTypeDefaults = array(
 		AttributeType::Mixed      => array('model' => null, 'column' => ColumnType::Text),
 		AttributeType::Bool       => array('maxLength' => 1, 'default' => false, 'required' => true, 'column' => ColumnType::TinyInt, 'unsigned' => true),
-		AttributeType::ClassName  => array('maxLength' => 150, 'column' => ColumnType::Char),
+		AttributeType::ClassName  => array('maxLength' => 150, 'column' => ColumnType::Varchar),
 		AttributeType::DateTime   => array('column' => ColumnType::DateTime),
 		AttributeType::Email      => array('minLength' => 5, 'column' => ColumnType::Varchar),
 		AttributeType::Enum       => array('values' => array(), 'column' => ColumnType::Enum),
@@ -226,6 +226,7 @@ class ModelHelper
 		$requiredAttributes = array();
 		$emailAttributes = array();
 		$urlAttributes = array();
+		$urlFormatAttributes = array();
 		$uriAttributes = array();
 		$strictLengthAttributes = array();
 		$minLengthAttributes = array();
@@ -249,7 +250,7 @@ class ModelHelper
 					break;
 				}
 
-				case Attributetype::Enum:
+				case AttributeType::Enum:
 				{
 					$rules[] = array($name, 'in', 'range' => ArrayHelper::stringToArray($config['values']));
 					break;
@@ -293,6 +294,12 @@ class ModelHelper
 				case AttributeType::Url:
 				{
 					$urlAttributes[] = $name;
+					break;
+				}
+
+				case AttributeType::UrlFormat:
+				{
+					$urlFormatAttributes[] = $name;
 					break;
 				}
 
@@ -430,6 +437,11 @@ class ModelHelper
 			$rules[] = array(implode(',', $urlAttributes), 'Craft\UrlValidator', 'defaultScheme' => 'http');
 		}
 
+		if ($urlFormatAttributes)
+		{
+			$rules[] = array(implode(',', $urlFormatAttributes), 'Craft\UrlFormatValidator');
+		}
+
 		if ($uriAttributes)
 		{
 			$rules[] = array(implode(',', $uriAttributes), 'Craft\UriValidator');
@@ -479,14 +491,8 @@ class ModelHelper
 		{
 			if (isset($config['label']))
 			{
-				$label = $config['label'];
+				$labels[$name] = Craft::t($config['label']);
 			}
-			else
-			{
-				$label = $model->generateAttributeLabel($name);
-			}
-
-			$labels[$name] = Craft::t($label);
 		}
 
 		return $labels;
@@ -495,6 +501,7 @@ class ModelHelper
 	/**
 	 * Takes an attribute's config and value and "normalizes" them either for saving to db or sending across a web service.
 	 *
+	 * @static
 	 * @param      $value
 	 * @param bool $jsonEncodeArrays
 	 * @internal param $storedValue
@@ -507,9 +514,20 @@ class ModelHelper
 			return DateTimeHelper::formatTimeForDb($value->getTimestamp());
 		}
 
-		if ($value instanceof \CModel)
+		if ($value instanceof BaseModel)
 		{
-			$value = $value->getAttributes();
+			$attributes = $value->getAttributes(null, true);
+
+			if ($value instanceof ElementCriteriaModel)
+			{
+				$attributes['__criteria__'] = $value->getElementType()->getClassHandle();
+			}
+			else
+			{
+				$attributes['__model__'] = get_class($value);
+			}
+
+			$value = $attributes;
 		}
 
 		if (is_array($value))
@@ -536,6 +554,39 @@ class ModelHelper
 		}
 
 		return $value;
+	}
+
+	/**
+	 * Searches an array for any flattened models, and expands them back to models.
+	 *
+	 * @static
+	 * @param array $arr
+	 * @return array|BaseModel
+	 */
+	public static function expandModelsInArray($arr)
+	{
+		foreach ($arr as $key => $val)
+		{
+			if (is_array($val))
+			{
+				$arr[$key] = static::expandModelsInArray($val);
+			}
+		}
+
+		if (isset($arr['__criteria__']))
+		{
+			return craft()->elements->getCriteria($arr['__criteria__'], $arr);
+		}
+
+		if (isset($arr['__model__']))
+		{
+			$class = $arr['__model__'];
+			$model = new $class();
+			$model->setAttributes($arr);
+			return $model;
+		}
+
+		return $arr;
 	}
 
 	/**

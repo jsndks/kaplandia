@@ -73,8 +73,8 @@ class MatrixFieldType extends BaseFieldType
 		}
 
 		return craft()->templates->render('_components/fieldtypes/Matrix/settings', array(
-			'blockTypes' => $this->getSettings()->getBlockTypes(),
-			'fieldTypes'  => $fieldTypeOptions
+			'settings'   => $this->getSettings(),
+			'fieldTypes' => $fieldTypeOptions
 		));
 	}
 
@@ -132,6 +132,12 @@ class MatrixFieldType extends BaseFieldType
 		}
 
 		$matrixSettings->setBlockTypes($blockTypes);
+
+		if (!empty($settings['maxBlocks']))
+		{
+			$matrixSettings->maxBlocks = $settings['maxBlocks'];
+		}
+
 		return $matrixSettings;
 	}
 
@@ -200,6 +206,7 @@ class MatrixFieldType extends BaseFieldType
 	public function getInputHtml($name, $value)
 	{
 		$id = craft()->templates->formatInputId($name);
+		$settings = $this->getSettings();
 
 		// Get the block types data
 		$blockTypeInfo = $this->_getBlockTypeInfoForInput($name);
@@ -208,7 +215,8 @@ class MatrixFieldType extends BaseFieldType
 		craft()->templates->includeJs('new Craft.MatrixInput(' .
 			'"'.craft()->templates->namespaceInputId($id).'", ' .
 			JsonHelper::encode($blockTypeInfo).', ' .
-			'"'.craft()->templates->namespaceInputName($name).'"' .
+			'"'.craft()->templates->namespaceInputName($name).'", ' .
+			($settings->maxBlocks ? $settings->maxBlocks : 'null') .
 		');');
 
 		craft()->templates->includeTranslations('Disabled', 'Actions', 'Collapse', 'Expand', 'Disable', 'Enable', 'Add {type} above', 'Add a block');
@@ -217,12 +225,13 @@ class MatrixFieldType extends BaseFieldType
 		{
 			$value->limit = null;
 			$value->status = null;
+			$value->localeEnabled = null;
 		}
 
 		return craft()->templates->render('_components/fieldtypes/Matrix/input', array(
 			'id' => $id,
 			'name' => $name,
-			'blockTypes' => $this->getSettings()->getBlockTypes(),
+			'blockTypes' => $settings->getBlockTypes(),
 			'blocks' => $value
 		));
 	}
@@ -268,6 +277,7 @@ class MatrixFieldType extends BaseFieldType
 				$criteria->id = $ids;
 				$criteria->limit = null;
 				$criteria->status = null;
+				$criteria->localeEnabled = null;
 				$criteria->locale = $this->element->locale;
 				$oldBlocks = $criteria->find();
 
@@ -303,17 +313,29 @@ class MatrixFieldType extends BaseFieldType
 				$block->typeId  = $blockType->id;
 				$block->ownerId = $ownerId;
 				$block->locale  = $this->element->locale;
+
+				// Preserve the collapsed state, which the browser can't remember on its own for neww blocks
+				$block->collapsed = !empty($blockData['collapsed']);
 			}
 			else
 			{
 				$block = $oldBlocksById[$blockId];
 			}
 
+			$block->setOwner($this->element);
 			$block->enabled = (isset($blockData['enabled']) ? (bool) $blockData['enabled'] : true);
 
 			if (isset($blockData['fields']))
 			{
-				$block->getContent()->setAttributes($blockData['fields']);
+				$block->setContentFromPost($blockData['fields']);
+			}
+
+			// Set the content post location on the block if we can
+			$ownerContentPostLocation = $this->element->getContentPostLocation();
+
+			if ($ownerContentPostLocation)
+			{
+				$block->setContentPostLocation("{$ownerContentPostLocation}.{$this->model->handle}.{$blockId}.fields");
 			}
 
 			$sortOrder++;
@@ -335,19 +357,39 @@ class MatrixFieldType extends BaseFieldType
 	 */
 	public function validate($blocks)
 	{
-		$validates = true;
+		$errors = array();
+		$blocksValidate = true;
 
 		foreach ($blocks as $block)
 		{
 			if (!craft()->matrix->validateBlock($block))
 			{
-				$validates = false;
+				$blocksValidate = false;
 			}
 		}
 
-		if (!$validates)
+		if (!$blocksValidate)
 		{
-			return Craft::t('Correct the errors listed above.');
+			$errors[] = Craft::t('Correct the errors listed above.');
+		}
+
+		$maxBlocks = $this->getSettings()->maxBlocks;
+
+		if ($maxBlocks && count($blocks) > $maxBlocks)
+		{
+			if ($maxBlocks == 1)
+			{
+				$errors[] = Craft::t('There can’t be more than one block.');
+			}
+			else
+			{
+				$errors[] = Craft::t('There can’t be more than {max} blocks.', array('max' => $maxBlocks));
+			}
+		}
+
+		if ($errors)
+		{
+			return $errors;
 		}
 		else
 		{
@@ -403,14 +445,7 @@ class MatrixFieldType extends BaseFieldType
 	 */
 	public function onAfterElementSave()
 	{
-		$blocks = $this->element->getContent()->getAttribute($this->model->handle);
-
-		if (!is_array($blocks))
-		{
-			$blocks = array();
-		}
-
-		craft()->matrix->saveField($this->model, $this->element->id, $blocks);
+		craft()->matrix->saveField($this);
 	}
 
 	/**

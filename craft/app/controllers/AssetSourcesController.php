@@ -60,13 +60,35 @@ class AssetSourcesController extends BaseController
 			$variables['sourceType'] = craft()->assetSources->populateSourceType($variables['source']);
 		}
 
-		if (craft()->hasPackage(CraftPackage::Cloud))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			$sourceTypes = craft()->assetSources->getAllSourceTypes();
 			$variables['sourceTypes'] = AssetSourceTypeVariable::populateVariables($sourceTypes);
 		}
 
-		$this->renderTemplate('settings/assets/sources/_settings', $variables);
+		$variables['isNewSource'] = !$variables['source']->id;
+
+		if ($variables['isNewSource'])
+		{
+			$variables['title'] = Craft::t('Create a new asset source');
+		}
+		else
+		{
+			$variables['title'] = $variables['source']->name;
+		}
+
+		$variables['crumbs'] = array(
+			array('label' => Craft::t('Settings'), 'url' => UrlHelper::getUrl('settings')),
+			array('label' => Craft::t('Assets'),   'url' => UrlHelper::getUrl('settings/assets')),
+			array('label' => Craft::t('Sources'),  'url' => UrlHelper::getUrl('settings/assets')),
+		);
+
+		$variables['tabs'] = array(
+			'settings'    => array('label' => Craft::t('Settings'),     'url' => '#assetsource-settings'),
+			'fieldlayout' => array('label' => Craft::t('Field Layout'), 'url' => '#assetsource-fieldlayout'),
+		);
+
+		$this->renderTemplate('settings/assets/sources/_edit', $variables);
 	}
 
 	/**
@@ -90,7 +112,7 @@ class AssetSourcesController extends BaseController
 
 		$source->name = craft()->request->getPost('name');
 
-		if (craft()->hasPackage(CraftPackage::Cloud))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			$source->type = craft()->request->getPost('type');
 		}
@@ -105,6 +127,11 @@ class AssetSourcesController extends BaseController
 
 			$source->settings = array_merge($source->settings, $typeSettings[$source->type]);
 		}
+
+		// Set the field layout
+		$fieldLayout = craft()->fields->assembleLayoutFromPost(false);
+		$fieldLayout->type = ElementType::Asset;
+		$source->setFieldLayout($fieldLayout);
 
 		// Did it save?
 		if (craft()->assetSources->saveSource($source))
@@ -160,7 +187,7 @@ class AssetSourcesController extends BaseController
 	public function actionGetS3Buckets()
 	{
 		craft()->userSession->requireAdmin();
-		craft()->requirePackage(CraftPackage::Cloud);
+		craft()->requireEdition(Craft::Pro);
 
 		$keyId = craft()->request->getRequiredPost('keyId');
 		$secret = craft()->request->getRequiredPost('secret');
@@ -176,22 +203,49 @@ class AssetSourcesController extends BaseController
 	}
 
 	/**
-	 * Get Rackspace containers.
+	 * Get Rackspace regions.
 	 */
-	public function actionGetRackspaceContainers()
+	public function actionGetRackspaceRegions()
 	{
 		craft()->userSession->requireAdmin();
-		craft()->requirePackage(CraftPackage::Cloud);
+		craft()->requireEdition(Craft::Pro);
 
 		$username = craft()->request->getRequiredPost('username');
 		$apiKey = craft()->request->getRequiredPost('apiKey');
-		$location = craft()->request->getRequiredPost('location');
 
 		try
 		{
 			// Static methods here are no-go (without passing unneeded variables around, such as location), we'll
 			// have to mock up a SourceType object here.
-			$model = new AssetSourceModel(array('type' => 'Rackspace', 'settings' => array('username' => $username, 'apiKey' => $apiKey, 'location' => $location)));
+			$model = new AssetSourceModel(array('type' => 'Rackspace', 'settings' => array('username' => $username, 'apiKey' => $apiKey)));
+
+			/** @var RackspaceAssetSourceType $source */
+			$source = craft()->assetSources->populateSourceType($model);
+			$this->returnJson($source->getRegionList());
+		}
+		catch (Exception $exception)
+		{
+			$this->returnErrorJson($exception->getMessage());
+		}
+	}
+
+	/**
+	 * Get Rackspace containers.
+	 */
+	public function actionGetRackspaceContainers()
+	{
+		craft()->userSession->requireAdmin();
+		craft()->requireEdition(Craft::Pro);
+
+		$username = craft()->request->getRequiredPost('username');
+		$apiKey = craft()->request->getRequiredPost('apiKey');
+		$region = craft()->request->getRequiredPost('region');
+
+		try
+		{
+			// Static methods here are no-go (without passing unneeded variables around, such as location), we'll
+			// have to mock up a SourceType object here.
+			$model = new AssetSourceModel(array('type' => 'Rackspace', 'settings' => array('username' => $username, 'apiKey' => $apiKey, 'region' => $region)));
 
 			/** @var RackspaceAssetSourceType $source */
 			$source = craft()->assetSources->populateSourceType($model);
@@ -209,7 +263,7 @@ class AssetSourcesController extends BaseController
 	public function actionGetGoogleCloudBuckets()
 	{
 		craft()->userSession->requireAdmin();
-		craft()->requirePackage(CraftPackage::Cloud);
+		craft()->requireEdition(Craft::Pro);
 
 		$keyId = craft()->request->getRequiredPost('keyId');
 		$secret = craft()->request->getRequiredPost('secret');

@@ -41,10 +41,9 @@ class GlobalsController extends BaseController
 		{
 			craft()->userSession->setNotice(Craft::t('Global set saved.'));
 
-			// TODO: Remove for 2.0
 			if (isset($_POST['redirect']) && mb_strpos($_POST['redirect'], '{setId}') !== false)
 			{
-				Craft::log('The {setId} token within the ‘redirect’ param on globals/saveSet requests has been deprecated. Use {id} instead.', LogLevel::Warning);
+				craft()->deprecator->log('GlobalsController::saveSet():setId_redirect', 'The {setId} token within the ‘redirect’ param on globals/saveSet requests has been deprecated. Use {id} instead.');
 				$_POST['redirect'] = str_replace('{setId}', '{id}', $_POST['redirect']);
 			}
 
@@ -158,23 +157,19 @@ class GlobalsController extends BaseController
 		// Make sure the user is allowed to edit this global set and locale
 		craft()->userSession->requirePermission('editGlobalSet:'.$globalSetId);
 
-		if (craft()->hasPackage(CraftPackage::Localize))
+		if (craft()->isLocalized())
 		{
 			craft()->userSession->requirePermission('editLocale:'.$localeId);
 		}
 
-		$criteria = craft()->elements->getCriteria(ElementType::GlobalSet);
-		$criteria->id = $globalSetId;
-		$criteria->locale = $localeId;
-		$globalSet = $criteria->first();
+		$globalSet = craft()->globals->getSetById($globalSetId, $localeId);
 
 		if (!$globalSet)
 		{
 			throw new Exception(Craft::t('No global set exists with the ID “{id}”.', array('id' => $globalSetId)));
 		}
 
-		$fields = craft()->request->getPost('fields');
-		$globalSet->getContent()->setAttributes($fields);
+		$globalSet->setContentFromPost('fields');
 
 		if (craft()->globals->saveContent($globalSet))
 		{

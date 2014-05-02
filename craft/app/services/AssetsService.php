@@ -49,13 +49,12 @@ class AssetsService extends BaseApplicationComponent
 	 * Returns a file by its ID.
 	 *
 	 * @param $fileId
+	 * @param string|null $localeId
 	 * @return AssetFileModel|null
 	 */
-	public function getFileById($fileId)
+	public function getFileById($fileId, $localeId = null)
 	{
-		return $this->findFile(array(
-			'id' => $fileId
-		));
+		return craft()->elements->getElementById($fileId, ElementType::Asset, $localeId);
 	}
 
 	/**
@@ -91,15 +90,17 @@ class AssetsService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Stores a file.
+	 * Saves the record for an asset.
 	 *
 	 * @param AssetFileModel $file
-	 * @throws Exception
+	 * @throws \Exception
 	 * @return bool
 	 */
 	public function storeFile(AssetFileModel $file)
 	{
-		if ($file->id)
+		$isNewFile = !$file->id;
+
+		if (!$isNewFile)
 		{
 			$fileRecord = AssetFileRecord::model()->findById($file->id);
 
@@ -110,12 +111,7 @@ class AssetsService extends BaseApplicationComponent
 		}
 		else
 		{
-			$elementRecord = new ElementRecord();
-			$elementRecord->type = ElementType::Asset;
-			$elementRecord->enabled = 1;
-			$elementRecord->save();
 			$fileRecord = new AssetFileRecord();
-			$fileRecord->id = $elementRecord->id;
 		}
 
 		$fileRecord->sourceId     = $file->sourceId;
@@ -127,66 +123,102 @@ class AssetsService extends BaseApplicationComponent
 		$fileRecord->height       = $file->height;
 		$fileRecord->dateModified = $file->dateModified;
 
-		if ($fileRecord->save())
+		$fileRecord->validate();
+		$file->addErrors($fileRecord->getErrors());
+
+		if (!$file->hasErrors())
 		{
-			if (!$file->id)
+			$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
+			try
 			{
-				// Save the ID on the model now that we have it
-				$file->id = $fileRecord->id;
+				if ($isNewFile && !$file->getContent()->title)
+				{
+					// Give it a default title based on the file name
+					$file->getContent()->title = str_replace('_', ' ', IOHelper::getFileName($file->filename, false));
+				}
 
-				// Give it a default title based on the file name
-				$file->getContent()->title = str_replace('_', ' ', IOHelper::getFileName($file->filename, false));
-				$this->saveFileContent($file, false);
+				// Fire an 'onBeforeSaveAsset' event
+				$this->onBeforeSaveAsset(new Event($this, array(
+					'asset'      => $file,
+					'isNewAsset' => $isNewFile
+				)));
+
+				// Save the element
+				if (craft()->elements->saveElement($file, false))
+				{
+					// Now that we have an element ID, save it on the other stuff
+					if ($isNewFile)
+					{
+						$fileRecord->id = $file->id;
+					}
+
+					// Save the file row
+					$fileRecord->save(false);
+
+					// Fire an 'onSaveAsset' event
+					$this->onSaveAsset(new Event($this, array(
+						'asset' => $file
+					)));
+
+					if ($this->hasEventHandler('onSaveFileContent'))
+					{
+						// Fire an 'onSaveFileContent' event (deprecated)
+						$this->onSaveFileContent(new Event($this, array(
+							'file' => $file
+						)));
+					}
+
+					if ($transaction !== null)
+					{
+						$transaction->commit();
+					}
+
+					return true;
+				}
 			}
+			catch (\Exception $e)
+			{
+				if ($transaction !== null)
+				{
+					$transaction->rollback();
+				}
 
-			// Update the search index
-			craft()->search->indexElementAttributes($file);
+				throw $e;
+			}
+		}
 
-			return true;
-		}
-		else
-		{
-			$file->addErrors($fileRecord->getErrors());
-			return false;
-		}
+		return false;
 	}
 
 	/**
-	 * Saves a file's content.
+	 * Fires an 'onBeforeSaveAsset' event.
 	 *
-	 * @param AssetFileModel $file
-	 * @param bool           $validate
-	 * @return bool
+	 * @param Event $event
 	 */
-	public function saveFileContent(AssetFileModel $file, $validate = true)
+	public function onBeforeSaveAsset(Event $event)
 	{
-		// TODO: translation support
-		$fieldLayout = craft()->fields->getLayoutByType(ElementType::Asset);
-		if (craft()->content->saveElementContent($file, $fieldLayout, $validate))
-		{
-			// Update the search index since the title may have just changed
-			craft()->search->indexElementAttributes($file);
+		$this->raiseEvent('onBeforeSaveAsset', $event);
+	}
 
-			// Fire an 'onSaveFileContent' event
-			$this->onSaveFileContent(new Event($this, array(
-				'file' => $file
-			)));
-
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+	/**
+	 * Fires an 'onSaveAsset' event.
+	 *
+	 * @param Event $event
+	 */
+	public function onSaveAsset(Event $event)
+	{
+		$this->raiseEvent('onSaveAsset', $event);
 	}
 
 	/**
 	 * Fires an 'onSaveFileContent' event.
 	 *
 	 * @param Event $event
+	 * @deprecated Deprecated in 2.0.
 	 */
 	public function onSaveFileContent(Event $event)
 	{
+		craft()->deprecator->log('AssetsService::onSaveFileContent()', 'The assets.onSaveFileContent event has been deprecated. Use assets.onSaveAsset instead.');
 		$this->raiseEvent('onSaveFileContent', $event);
 	}
 
@@ -213,42 +245,22 @@ class AssetsService extends BaseApplicationComponent
 		$record->parentId = $folderModel->parentId;
 		$record->sourceId = $folderModel->sourceId;
 		$record->name = $folderModel->name;
-		$record->fullPath = $folderModel->fullPath;
+		$record->path = $folderModel->path;
 		$record->save();
 
 		return $record->id;
 	}
 
 	/**
-	 * Get the folder tree for a given asset source(s).
+	 * Get the folder tree for Assets by source ids
 	 *
-	 * @param $sourceId
+	 * @param $allowedSourceIds
 	 * @return array
 	 */
-	public function getFolderTree($sourceId)
+	public function getFolderTreeBySourceIds($allowedSourceIds)
 	{
-		if (!is_array($sourceId))
-		{
-			$sourceId = array($sourceId);
-		}
-
-		$folders = $this->findFolders(array('sourceId' => $sourceId, 'order' => 'fullPath'));
-		$tree = array();
-		$referenceStore = array();
-
-		foreach ($folders as $folder)
-		{
-			if ($folder->parentId)
-			{
-				$referenceStore[$folder->parentId]->addChild($folder);
-			}
-			else
-			{
-				$tree[] = $folder;
-			}
-
-			$referenceStore[$folder->id] = $folder;
-		}
+		$folders = $this->findFolders(array('sourceId' => $allowedSourceIds, 'order' => 'path'));
+		$tree = $this->_getFolderTreeByFolders($folders);
 
 		$sort = array();
 		foreach ($tree as $topFolder)
@@ -258,6 +270,69 @@ class AssetsService extends BaseApplicationComponent
 
 		array_multisort($sort, $tree);
 		return $tree;
+	}
+
+	/**
+	 * Get the users Folder model.
+	 *
+	 * @param UserModel $userModel
+	 * @return AssetFolderModel|null
+	 * @throws Exception
+	 */
+	public function getUserFolder(UserModel $userModel = null)
+	{
+		$sourceTopFolder = craft()->assets->findFolder(array('sourceId' => ':empty:', 'parentId' => ':empty:'));
+
+		// Super unlikely, but would be very awkward if this happened without any contingency plans in place.
+		if (!$sourceTopFolder)
+		{
+			$sourceTopFolder = new AssetFolderModel();
+			$sourceTopFolder->name = TempAssetSourceType::sourceName;
+			$sourceTopFolder->id = $this->storeFolder($sourceTopFolder);
+		}
+
+		if ($userModel)
+		{
+			$folderName = 'user_' . $userModel->id;
+		}
+		else
+		{
+			// A little obfuscation never hurt anyone
+			$folderName = 'user_' . sha1(craft()->httpSession->getSessionID());
+		}
+		$folderCriteria = new FolderCriteriaModel(array(
+			'name' => $folderName,
+			'parentId' => $sourceTopFolder->id
+		));
+
+		$folder = $this->findFolder($folderCriteria);
+		if (!$folder)
+		{
+			$folder = new AssetFolderModel();
+			$folder->parentId = $sourceTopFolder->id;
+			$folder->name = $folderName;
+			$folder->id = $this->storeFolder($folder);
+		}
+
+		return $folder;
+	}
+
+	/**
+	 * Get the folder tree for Assets by a folder id.
+	 *
+	 * @param $folderId
+	 * @return array
+	 */
+	public function getFolderTreeByFolderId($folderId)
+	{
+		$folder = $this->getFolderById($folderId);
+
+		if (is_null($folder))
+		{
+			return array();
+		}
+
+		return $this->_getFolderTreeByFolders(array($folder));
 	}
 
 	/**
@@ -334,16 +409,23 @@ class AssetsService extends BaseApplicationComponent
 		$folder = $this->getFolderById($folderId);
 		$newParentFolder = $this->getFolderById($newParentId);
 
-
-		if (!($folder && $newParentFolder))
+		try
+		{
+			if (!($folder && $newParentFolder))
+			{
+				$response = new AssetOperationResponseModel();
+				$response->setError(Craft::t("Error moving folder - either source or target folders cannot be found"));
+			}
+			else
+			{
+				$newSourceType = craft()->assetSources->getSourceTypeById($newParentFolder->sourceId);
+				$response = $newSourceType->moveFolder($folder, $newParentFolder, !empty($action));
+			}
+		}
+		catch (Exception $exception)
 		{
 			$response = new AssetOperationResponseModel();
-			$response->setError(Craft::t("Error moving folder - either source or target folders cannot be found"));
-		}
-		else
-		{
-			$newSourceType = craft()->assetSources->getSourceTypeById($newParentFolder->sourceId);
-			$response = $newSourceType->moveFolder($folder, $newParentFolder, !empty($action));
+			$response->setError($exception->getMessage());
 		}
 
 		return $response;
@@ -389,16 +471,20 @@ class AssetsService extends BaseApplicationComponent
 	{
 		if (!isset($this->_foldersById) || !array_key_exists($folderId, $this->_foldersById))
 		{
-			$folderRecord = AssetFolderRecord::model()->findById($folderId);
+			$result = $this->_createFolderQuery()
+				->where('id = :id', array(':id' => $folderId))
+				->queryRow();
 
-			if ($folderRecord)
+			if ($result)
 			{
-				$this->_foldersById[$folderId] = AssetFolderModel::populateModel($folderRecord);
+				$folder = new AssetFolderModel($result);
 			}
 			else
 			{
-				$this->_foldersById[$folderId] = null;
+				$folder = null;
 			}
+
+			$this->_foldersById[$folderId] = $folder;
 		}
 
 		return $this->_foldersById[$folderId];
@@ -462,7 +548,7 @@ class AssetsService extends BaseApplicationComponent
 		$query = craft()->db->createCommand()
 			->select('f.*')
 			->from('assetfolders AS f')
-			->where(array('like', 'fullPath', $folderModel->fullPath.'%'))
+			->where(array('like', 'path', $folderModel->path.'%'))
 			->andWhere('sourceId = :sourceId', array(':sourceId' => $folderModel->sourceId));
 
 		$result = $query->queryAll();
@@ -524,59 +610,6 @@ class AssetsService extends BaseApplicationComponent
 		return (int)$query->queryScalar();
 	}
 
-	/**
-	 * Applies WHERE conditions to a DbCommand query for folders.
-	 *
-	 * @access private
-	 * @param DbCommand $query
-	 * @param FolderCriteriaModel $criteria
-	 */
-	private function _applyFolderConditions($query, FolderCriteriaModel $criteria)
-	{
-		$whereConditions = array();
-		$whereParams = array();
-
-		if ($criteria->id)
-		{
-			$whereConditions[] = DbHelper::parseParam('f.id', $criteria->id, $whereParams);
-		}
-
-		if ($criteria->sourceId)
-		{
-			$whereConditions[] = DbHelper::parseParam('f.sourceId', $criteria->sourceId, $whereParams);
-		}
-
-		if ($criteria->parentId)
-		{
-			// Set parentId to null if we're looking for folders with no parents.
-			if ($criteria->parentId == FolderCriteriaModel::AssetsNoParent)
-			{
-				$criteria->parentId = null;
-			}
-			$whereConditions[] = DbHelper::parseParam('f.parentId', array($criteria->parentId), $whereParams);
-		}
-
-		if ($criteria->name)
-		{
-			$whereConditions[] = DbHelper::parseParam('f.name', $criteria->name, $whereParams);
-		}
-
-		if (!is_null($criteria->fullPath))
-		{
-			$whereConditions[] = DbHelper::parseParam('f.fullPath', $criteria->fullPath, $whereParams);
-		}
-
-		if (count($whereConditions) == 1)
-		{
-			$query->where($whereConditions[0], $whereParams);
-		}
-		else
-		{
-			array_unshift($whereConditions, 'and');
-			$query->where($whereConditions, $whereParams);
-		}
-	}
-
 	// -------------------------------------------
 	//  File and folder managing
 	// -------------------------------------------
@@ -617,6 +650,282 @@ class AssetsService extends BaseApplicationComponent
 	}
 
 	/**
+	 * Inserts a file from a local path into a folder and returns the resultinf file id.
+	 *
+	 * @param $localPath
+	 * @param $fileName
+	 * @param $folderId
+	 * @return bool|null
+	 */
+	public function insertFileByLocalPath($localPath, $fileName, $folderId)
+	{
+		$folder = $this->getFolderById($folderId);
+		if (!$folder)
+		{
+			return false;
+		}
+		$source = craft()->assetSources->getSourceTypeById($folder->sourceId);
+		$response = $source->insertFileByPath($localPath, $folder, $fileName, true);
+		return $response->getDataItem('fileId');
+	}
+
+	/**
+	 * Returns true, if a file is in the process os being merged.
+	 *
+	 * @return bool
+	 */
+	public function isMergeInProgress()
+	{
+		return $this->_mergeInProgress;
+	}
+
+	/**
+	 * Delete a list of files by an array of ids (or a single id).
+	 *
+	 * @param $fileIds
+	 * @return AssetOperationResponseModel
+	 */
+	public function deleteFiles($fileIds)
+	{
+		if (!is_array($fileIds))
+		{
+			$fileIds = array($fileIds);
+		}
+
+		$response = new AssetOperationResponseModel();
+		try
+		{
+			foreach ($fileIds as $fileId)
+			{
+				$file = $this->getFileById($fileId);
+				$source = craft()->assetSources->getSourceTypeById($file->sourceId);
+				$source->deleteFile($file);
+				craft()->elements->deleteElementById($fileId);
+			}
+			$response->setSuccess();
+		}
+		catch (Exception $exception)
+		{
+			$response->setError($exception->getMessage());
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Move or rename files.
+	 *
+	 * @param $fileIds
+	 * @param $folderId
+	 * @param string $filename if this is a rename operation
+	 * @param array $actions actions to take in case of a conflict.
+	 * @return bool|AssetOperationResponseModel
+	 * @throws Exception
+	 */
+	public function moveFiles($fileIds, $folderId, $filename = '', $actions = array())
+	{
+		if ($filename && is_array($fileIds) && count($fileIds) > 1)
+		{
+			throw new Exception(Craft::t("It's not possible to rename multiple files!"));
+		}
+
+		if (!is_array($fileIds))
+		{
+			$fileIds = array($fileIds);
+		}
+
+		if (!is_array($actions))
+		{
+			$actions = array($actions);
+		}
+
+		$results = array();
+
+		$response = new AssetOperationResponseModel();
+
+		foreach ($fileIds as $i => $fileId)
+		{
+			$file = $this->getFileById($fileId);
+
+			// If this is not a rename operation, then the filename remains the original
+			if (count($fileIds) > 1 || empty($filename))
+			{
+				$filename = $file->filename;
+			}
+
+			// If the new file does not have an extension, give it the old file extension.
+			if (!IOHelper::getExtension($filename))
+			{
+				$filename .= '.'.$file->getExtension();
+			}
+
+			$filename = IOHelper::cleanFilename($filename);
+
+			if ($folderId == $file->folderId && ($filename == $file->filename))
+			{
+				$response = new AssetOperationResponseModel();
+				$response->setSuccess();
+				$results[] = $response;
+			}
+
+			$originalSourceType = craft()->assetSources->getSourceTypeById($file->sourceId);
+			$folder = $this->getFolderById($folderId);
+			$newSourceType = craft()->assetSources->getSourceTypeById($folder->sourceId);
+
+			if ($originalSourceType && $newSourceType)
+			{
+				if ( !$response = $newSourceType->moveFileInsideSource($originalSourceType, $file, $folder, $filename, $actions[$i]))
+				{
+					$response = $this->_moveFileBetweenSources($originalSourceType, $newSourceType, $file, $folder, $actions[$i]);
+				}
+			}
+			else
+			{
+				$response->setError(Craft::t("There was an error moving the file {file}.", array('file' => $file->filename)));
+			}
+		}
+
+		return $response;
+	}
+
+	/**
+	* Delete a folder record by id.
+	*
+	* @param $folderId
+	* @return bool
+	*/
+	public function deleteFolderRecord($folderId)
+	{
+		return (bool) AssetFolderRecord::model()->deleteAll('id = :folderId', array(':folderId' => $folderId));
+	}
+
+	/**
+	 * Get URL for a file.
+	 *
+	 * @param AssetFileModel $file
+	 * @param $transform
+	 * @return string
+	 */
+	public function getUrlForFile(AssetFileModel $file, $transform = null)
+	{
+		if (!$transform || !ImageHelper::isImageManipulatable(IOHelper::getExtension($file->filename)))
+		{
+			$sourceType = craft()->assetSources->getSourceTypeById($file->sourceId);
+			return AssetsHelper::generateUrl($sourceType, $file);
+		}
+
+		// Get the transform index model
+		$existingTransformData  = craft()->assetTransforms->getTransformIndex($file, $transform);
+
+		// Does the file actually exist?
+		if ($existingTransformData->fileExists)
+		{
+			return craft()->assetTransforms->getUrlforTransformByFile($file, $transform);
+		}
+		else
+		{
+			return UrlHelper::getActionUrl('assets/generateTransform', array('transformId' => $existingTransformData->id));
+		}
+	}
+
+	// Private methods
+
+	/**
+	 * Returns a DbCommand object prepped for retrieving assets.
+	 *
+	 * @return DbCommand
+	 */
+	private function _createFolderQuery()
+	{
+		return craft()->db->createCommand()
+			->select('id, parentId, sourceId, name, path')
+			->from('assetfolders');
+	}
+
+	/**
+	 * Return the folder tree form a list of folders.
+	 *
+	 * @param $folders
+	 * @return array
+	 */
+	private function _getFolderTreeByFolders($folders)
+	{
+		$tree = array();
+		$referenceStore = array();
+
+		foreach ($folders as $folder)
+		{
+			if ($folder->parentId && isset($referenceStore[$folder->parentId]))
+			{
+				$referenceStore[$folder->parentId]->addChild($folder);
+			}
+			else
+			{
+				$tree[] = $folder;
+			}
+
+			$referenceStore[$folder->id] = $folder;
+		}
+
+		$sort = array();
+		foreach ($tree as $topFolder)
+		{
+			$sort[] = craft()->assetSources->getSourceById($topFolder->sourceId)->sortOrder;
+		}
+
+		array_multisort($sort, $tree);
+		return $tree;
+	}
+
+	/**
+	 * Applies WHERE conditions to a DbCommand query for folders.
+	 *
+	 * @access private
+	 * @param DbCommand $query
+	 * @param FolderCriteriaModel $criteria
+	 */
+	private function _applyFolderConditions($query, FolderCriteriaModel $criteria)
+	{
+		$whereConditions = array();
+		$whereParams = array();
+
+		if ($criteria->id)
+		{
+			$whereConditions[] = DbHelper::parseParam('f.id', $criteria->id, $whereParams);
+		}
+
+		if ($criteria->sourceId)
+		{
+			$whereConditions[] = DbHelper::parseParam('f.sourceId', $criteria->sourceId, $whereParams);
+		}
+
+		if ($criteria->parentId)
+		{
+			$whereConditions[] = DbHelper::parseParam('f.parentId', $criteria->parentId, $whereParams);
+		}
+
+		if ($criteria->name)
+		{
+			$whereConditions[] = DbHelper::parseParam('f.name', $criteria->name, $whereParams);
+		}
+
+		if (!is_null($criteria->path))
+		{
+			$whereConditions[] = DbHelper::parseParam('f.path', $criteria->path, $whereParams);
+		}
+
+		if (count($whereConditions) == 1)
+		{
+			$query->where($whereConditions[0], $whereParams);
+		}
+		else
+		{
+			array_unshift($whereConditions, 'and');
+			$query->where($whereConditions, $whereParams);
+		}
+	}
+
+	/**
 	 * Flag a file merge in progress.
 	 */
 	private function _startMergeProcess()
@@ -630,16 +939,6 @@ class AssetsService extends BaseApplicationComponent
 	private function _finishMergeProcess()
 	{
 		$this->_mergeInProgress = false;
-	}
-
-	/**
-	 * Returns true, if a file is in the process os being merged.
-	 *
-	 * @return bool
-	 */
-	public function isMergeInProgress()
-	{
-		return $this->_mergeInProgress;
 	}
 
 	/**
@@ -698,108 +997,6 @@ class AssetsService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Delete a list of files by an array of ids (or a single id).
-	 *
-	 * @param $fileIds
-	 * @return AssetOperationResponseModel
-	 */
-	public function deleteFiles($fileIds)
-	{
-		if (!is_array($fileIds))
-		{
-			$fileIds = array($fileIds);
-		}
-
-		$response = new AssetOperationResponseModel();
-		try
-		{
-			foreach ($fileIds as $fileId)
-			{
-				$file = $this->getFileById($fileId);
-				$source = craft()->assetSources->getSourceTypeById($file->sourceId);
-				$source->deleteFile($file);
-				craft()->elements->deleteElementById($fileId);
-			}
-			$response->setSuccess();
-		}
-		catch (Exception $exception)
-		{
-			$response->setError($exception->getMessage());
-		}
-
-		return $response;
-	}
-
-	/**
-	 * Move or rename files.
-	 *
-	 * @param $fileIds
-	 * @param $folderId
-	 * @param string $filename if this is a rename operation
-	 * @param array $actions actions to take in case of a conflict.
-	 */
-	public function moveFiles($fileIds, $folderId, $filename = '', $actions = array())
-	{
-		if (!is_array($fileIds))
-		{
-			$fileIds = array($fileIds);
-		}
-
-		if (!is_array($actions))
-		{
-			$actions = array($actions);
-		}
-
-		$results = array();
-
-		$response = new AssetOperationResponseModel();
-
-		foreach ($fileIds as $i => $fileId)
-		{
-			$file = $this->getFileById($fileId);
-
-			// If this is not a rename operation, then the filename remains the original
-			if (empty($filename))
-			{
-				$filename = $file->filename;
-			}
-
-			// If the new file does not have an extension, give it the old file extension.
-			if (!IOHelper::getExtension($filename))
-			{
-				$filename .= '.'.$file->getExtension();
-			}
-
-			$filename = IOHelper::cleanFilename($filename);
-
-			if ($folderId == $file->folderId && ($filename == $file->filename))
-			{
-				$response = new AssetOperationResponseModel();
-				$response->setSuccess();
-				$results[] = $response;
-			}
-
-			$originalSourceType = craft()->assetSources->getSourceTypeById($file->sourceId);
-			$folder = $this->getFolderById($folderId);
-			$newSourceType = craft()->assetSources->getSourceTypeById($folder->sourceId);
-
-			if ($originalSourceType && $newSourceType)
-			{
-				if ( !$response = $newSourceType->moveFileInsideSource($originalSourceType, $file, $folder, $filename, $actions[$i]))
-				{
-					$response = $this->_moveFileBetweenSources($originalSourceType, $newSourceType, $file, $folder, $actions[$i]);
-				}
-			}
-			else
-			{
-				$response->setError(Craft::t("There was an error moving the file {file}.", array('file' => $file->filename)));
-			}
-		}
-
-		return $response;
-	}
-
-	/**
 	 * Move a file between sources.
 	 *
 	 * @param BaseAssetSourceType $originalSource
@@ -830,73 +1027,59 @@ class AssetsService extends BaseApplicationComponent
 	}
 
 	/**
-	* Delete a folder record by id.
-	*
-	* @param $fileId
-	* @return bool
-	*/
-	public function deleteFolderRecord($folderId)
+	 * Check for a permission on a source by a folder id or an array of folder ids.
+	 *
+	 * @param $folderIds
+	 * @param $permission
+	 * @throws Exception
+	 */
+	public function checkPermissionByFolderIds($folderIds, $permission)
 	{
-		return (bool) AssetFolderRecord::model()->deleteAll('id = :folderId', array(':folderId' => $folderId));
+		if (!is_array($folderIds))
+		{
+			$folderIds = array($folderIds);
+		}
+		foreach ($folderIds as $folderId)
+		{
+			$folderModel = $this->getFolderById($folderId);
+			if (!$folderModel)
+			{
+				throw new Exception(Craft::t('That folder does not seem to exist anymore. Re-index the Assets source and try again.'));
+			}
+
+			if(!craft()->userSession->checkPermission($permission.':'.$folderModel->sourceId))
+			{
+				throw new Exception(Craft::t('You don’t have the required permissions for this operation.'));
+			}
+		}
 	}
 
 	/**
-	 * Get URL for a file.
+	 * Check for a permission on a source by a file id or an array of file ids.
 	 *
-	 * @param AssetFileModel $file
-	 * @param $transform
-	 * @return string
+	 * @param $fileIds
+	 * @param $permission
+	 * @throws Exception
 	 */
-	public function getUrlForFile(AssetFileModel $file, $transform = null)
+	public function checkPermissionByFileIds($fileIds, $permission)
 	{
-		$returnPlaceholder = false;
-
-		if (!$transform || !ImageHelper::isImageManipulatable(IOHelper::getExtension($file->filename)))
+		if (!is_array($fileIds))
 		{
-			$sourceType = craft()->assetSources->getSourceTypeById($file->sourceId);
-			$base = $sourceType->getBaseUrl();
-			return $base.$file->getFolder()->fullPath.$file->filename;
+			$fileIds = array($fileIds);
 		}
-
-		// Get the transform index model
-		$existingTransformData  = craft()->assetTransforms->getTransformIndex($file, $transform);
-
-		// Does the file actually exist?
-		if ($existingTransformData->fileExists)
+		foreach ($fileIds as $fileId)
 		{
-			return craft()->assetTransforms->getUrlforTransformByFile($file, $transform);
-		}
-		else
-		{
-			if (craft()->config->get('generateTransformsAfterPageLoad'))
+			$fileModel = $this->getFileById($fileId);
+			if (!$fileModel)
 			{
-				// File doesn't exist yet - load the TransformLoader and set the placeholder URL flag
-				$placeholderUrl = UrlHelper::getResourceUrl('images/blank.gif');
-
-				if (!$this->_includedTransformLoader)
-				{
-					$entityPlaceholderUrl = htmlspecialchars($placeholderUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-					$spinnerUrl = UrlHelper::getResourceurl('images/spinner_transform.gif');
-					$actionUrl  = UrlHelper::getActionUrl('assets/generateTransform');
-
-					craft()->templates->includeJsResource('js/TransformLoader.js');
-					craft()->templates->includeJs('new TransformLoader(' .
-						JsonHelper::encode($placeholderUrl).', ' .
-						JsonHelper::encode($entityPlaceholderUrl).', ' .
-						JsonHelper::encode($spinnerUrl).', ' .
-						JsonHelper::encode($actionUrl) .
-					');');
-
-					$this->_includedTransformLoader = true;
-				}
-
-				return $placeholderUrl.'#'.$existingTransformData->id;
+				throw new Exception(Craft::t('That file does not seem to exist anymore. Re-index the Assets source and try again.'));
 			}
-			else
+			if(!craft()->userSession->checkPermission($permission.':'.$fileModel->sourceId))
 			{
-				craft()->assetTransforms->updateTransforms($file, array($transform));
-				return craft()->assetTransforms->getUrlforTransformByFile($file, $transform);
+				throw new Exception(Craft::t('You don’t have the required permissions for this operation.'));
 			}
 		}
+
 	}
+
 }

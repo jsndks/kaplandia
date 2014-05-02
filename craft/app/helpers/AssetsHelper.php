@@ -29,10 +29,35 @@ class AssetsHelper
 	 */
 	public static function getTempFilePath($extension = 'tmp')
 	{
-		$extension = preg_replace('/[^a-z]/i', '', $extension);
+		$extension = strpos($extension, '.') !== false ? pathinfo($extension, PATHINFO_EXTENSION) : $extension;
 		$fileName = uniqid('assets', true) . '.' . $extension;
 
 		return IOHelper::createFile(craft()->path->getTempPath() . $fileName)->getRealPath();
+	}
+
+	/**
+	 * Generate a URL for a given Assets file in a Source Type.
+	 *
+	 * @param BaseAssetSourceType $sourceType
+	 * @param AssetFileModel $file
+	 * @param string $transformPath
+	 * @return string
+	 */
+	public static function generateUrl(BaseAssetSourceType $sourceType, AssetFileModel $file, $transformPath = '')
+	{
+		$baseUrl = $sourceType->getBaseUrl();
+		$folderPath = $file->getFolder()->path;
+		$fileName = $file->filename;
+		$appendix = '';
+
+		$source = craft()->assetSources->getSourceTypeById($file->sourceId);
+		if (!empty($source->getSettings()->expires) && DateTimeHelper::isValidIntervalString($source->getSettings()->expires))
+		{
+			$appendix = '?mtime='.$file->dateModified->format("YmdHis");
+		}
+
+		return $baseUrl.$folderPath.$transformPath.$fileName.$appendix;
+
 	}
 }
 

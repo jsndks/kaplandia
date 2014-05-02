@@ -14,38 +14,38 @@
 /**
  * Matrix input class
  */
-Craft.MatrixInput = Garnish.Base.extend({
-
+Craft.MatrixInput = Garnish.Base.extend(
+{
 	id: null,
 	blockTypes: null,
 	blockTypesByHandle: null,
-
 	inputNamePrefix: null,
 	inputIdPrefix: null,
+	maxBlocks: null,
 
 	$container: null,
 	$blockContainer: null,
-	$newBlockBtnContainer: null,
-	$newBlockBtnGroup: null,
-	$newBlockBtnGroupBtns: null,
+	$addBlockBtnContainer: null,
+	$addBlockBtnGroup: null,
+	$addBlockBtnGroupBtns: null,
 
 	blockSort: null,
 	totalNewBlocks: 0,
 
-	init: function(id, blockTypes, inputNamePrefix)
+	init: function(id, blockTypes, inputNamePrefix, maxBlocks)
 	{
 		this.id = id
 		this.blockTypes = blockTypes;
-
 		this.inputNamePrefix = inputNamePrefix;
 		this.inputIdPrefix = Craft.formatInputId(this.inputNamePrefix);
+		this.maxBlocks = maxBlocks;
 
 		this.$container = $('#'+this.id);
 		this.$blockContainer = this.$container.children('.blocks');
-		this.$newBlockBtnContainer = this.$container.children('.buttons');
-		this.$newBlockBtnGroup = this.$newBlockBtnContainer.children('.btngroup');
-		this.$newBlockBtnGroupBtns = this.$newBlockBtnGroup.children('.btn');
-		this.$newBlockMenuBtn = this.$newBlockBtnContainer.children('.menubtn');
+		this.$addBlockBtnContainer = this.$container.children('.buttons');
+		this.$addBlockBtnGroup = this.$addBlockBtnContainer.children('.btngroup');
+		this.$addBlockBtnGroupBtns = this.$addBlockBtnGroup.children('.btn');
+		this.$addBlockMenuBtn = this.$addBlockBtnContainer.children('.menubtn');
 
 		this.setNewBlockBtn();
 
@@ -88,13 +88,13 @@ Craft.MatrixInput = Garnish.Base.extend({
 			}
 		}
 
-		this.addListener(this.$newBlockBtnGroupBtns, 'click', function(ev)
+		this.addListener(this.$addBlockBtnGroupBtns, 'click', function(ev)
 		{
 			var type = $(ev.target).data('type');
 			this.addBlock(type);
 		});
 
-		new Garnish.MenuBtn(this.$newBlockMenuBtn,
+		new Garnish.MenuBtn(this.$addBlockMenuBtn,
 		{
 			onOptionSelect: $.proxy(function(option)
 			{
@@ -103,25 +103,51 @@ Craft.MatrixInput = Garnish.Base.extend({
 			}, this)
 		});
 
-		this.addListener(Garnish.$win, 'resize', 'setNewBlockBtn');
+		this.updateAddBlockBtn();
+
+		this.addListener(this.$container, 'resize', 'setNewBlockBtn');
 	},
 
 	setNewBlockBtn: function()
 	{
-		if (this.$newBlockBtnGroup.removeClass('hidden').width() > this.$container.width())
+		if (this.$addBlockBtnGroup.removeClass('hidden').height() > 30)
 		{
-			this.$newBlockBtnGroup.addClass('hidden');
-			this.$newBlockMenuBtn.removeClass('hidden');
+			this.$addBlockBtnGroup.addClass('hidden');
+			this.$addBlockMenuBtn.removeClass('hidden');
 		}
 		else
 		{
-			this.$newBlockBtnGroup.removeClass('hidden');
-			this.$newBlockMenuBtn.addClass('hidden');
+			this.$addBlockBtnGroup.removeClass('hidden');
+			this.$addBlockMenuBtn.addClass('hidden');
+		}
+	},
+
+	canAddMoreBlocks: function()
+	{
+		return (!this.maxBlocks || this.$blockContainer.children().length < this.maxBlocks);
+	},
+
+	updateAddBlockBtn: function()
+	{
+		if (this.canAddMoreBlocks())
+		{
+			this.$addBlockBtnGroup.removeClass('disabled');
+			this.$addBlockMenuBtn.removeClass('disabled');
+		}
+		else
+		{
+			this.$addBlockBtnGroup.addClass('disabled');
+			this.$addBlockMenuBtn.addClass('disabled');
 		}
 	},
 
 	addBlock: function(type, $insertBefore)
 	{
+		if (!this.canAddMoreBlocks())
+		{
+			return;
+		}
+
 		this.totalNewBlocks++;
 
 		var id = 'new'+this.totalNewBlocks;
@@ -177,18 +203,9 @@ Craft.MatrixInput = Garnish.Base.extend({
 
 		$(bodyHtml).appendTo($fieldsContainer);
 
-		if ($block.is(':last-child'))
-		{
-			var marginBottom = 20;
-		}
-		else
-		{
-			var marginBottom = 0;
-		}
-
 		$block.css(this.getHiddenBlockCss($block)).animate({
 			opacity: 1,
-			marginBottom: marginBottom
+			'margin-bottom': 14
 		}, 'fast', $.proxy(function()
 		{
 			$block.css('margin-bottom', '');
@@ -196,6 +213,7 @@ Craft.MatrixInput = Garnish.Base.extend({
 			Craft.initUiElements($fieldsContainer);
 			new MatrixBlock(this, $block);
 			this.blockSort.addItems($block);
+			this.updateAddBlockBtn();
 		}, this));
 	},
 
@@ -205,11 +223,8 @@ Craft.MatrixInput = Garnish.Base.extend({
 
 		if ($block.is(':only-child'))
 		{
-			marginBottom -= 16;
-		}
-		else if ($block.is(':last-child'))
-		{
-			marginBottom += 16;
+			// Without this block, there would only be a 4px gap between the field heading and the Add Block buttons
+			marginBottom -= 10;
 		}
 
 		return {
@@ -248,18 +263,49 @@ Craft.MatrixInput = Garnish.Base.extend({
 	setCollapsedBlockIds: function(ids)
 	{
 		localStorage[Craft.MatrixInput.collapsedBlockStorageKey] = ids.join(',');
+	},
+
+	rememberCollapsedBlockId: function(id)
+	{
+		if (typeof Storage !== 'undefined')
+		{
+			var collapsedBlocks = Craft.MatrixInput.getCollapsedBlockIds();
+
+			if ($.inArray(''+id, collapsedBlocks) == -1)
+			{
+				collapsedBlocks.push(id);
+				Craft.MatrixInput.setCollapsedBlockIds(collapsedBlocks);
+			}
+		}
+	},
+
+	forgetCollapsedBlockId: function(id)
+	{
+		if (typeof Storage !== 'undefined')
+		{
+			var collapsedBlocks = Craft.MatrixInput.getCollapsedBlockIds(),
+				collapsedBlocksIndex = $.inArray(''+id, collapsedBlocks);
+
+			if (collapsedBlocksIndex != -1)
+			{
+				collapsedBlocks.splice(collapsedBlocksIndex, 1);
+				Craft.MatrixInput.setCollapsedBlockIds(collapsedBlocks);
+			}
+		}
 	}
 });
 
 
-var MatrixBlock = Garnish.Base.extend({
-
+var MatrixBlock = Garnish.Base.extend(
+{
 	matrix: null,
 	$container: null,
 	$fieldsContainer: null,
 	$previewContainer: null,
 	$actionMenu: null,
+	$collapsedInput: null,
 
+	isNew: null,
 	id: null,
 
 	collapsed: false,
@@ -270,10 +316,8 @@ var MatrixBlock = Garnish.Base.extend({
 		this.$container = $container;
 		this.$fieldsContainer = $container.children('.fields');
 
-		if (parseInt(this.$container.data('id')) == this.$container.data('id'))
-		{
-			this.id = this.$container.data('id');
-		}
+		this.id    = this.$container.data('id');
+		this.isNew = (!this.id || (typeof this.id == 'string' && this.id.substr(0, 3) == 'new'));
 
 		var $menuBtn = this.$container.find('> .actions > .settings'),
 			menuBtn = new Garnish.MenuBtn($menuBtn);
@@ -281,6 +325,12 @@ var MatrixBlock = Garnish.Base.extend({
 		this.$actionMenu = menuBtn.menu.$container;
 
 		menuBtn.menu.settings.onOptionSelect = $.proxy(this, 'onMenuOptionSelect');
+
+		// Was this block already collapsed?
+		if (this.$container.data('collapsed'))
+		{
+			this.collapse();
+		}
 
 		this.addListener(this.$container, 'dblclick', function(ev)
 		{
@@ -406,14 +456,19 @@ var MatrixBlock = Garnish.Base.extend({
 		}, this), 200);
 
 		// Remember that?
-		if (this.id && typeof Storage !== 'undefined')
+		if (!this.isNew)
 		{
-			var collapsedBlocks = Craft.MatrixInput.getCollapsedBlockIds();
-
-			if ($.inArray(''+this.id, collapsedBlocks) == -1)
+			Craft.MatrixInput.rememberCollapsedBlockId(this.id);
+		}
+		else
+		{
+			if (!this.$collapsedInput)
 			{
-				collapsedBlocks.push(this.id);
-				Craft.MatrixInput.setCollapsedBlockIds(collapsedBlocks);
+				this.$collapsedInput = $('<input type="hidden" name="'+this.matrix.inputNamePrefix+'['+this.id+'][collapsed]" value="1"/>').appendTo(this.$container);
+			}
+			else
+			{
+				this.$collapsedInput.val('1');
 			}
 		}
 
@@ -448,7 +503,7 @@ var MatrixBlock = Garnish.Base.extend({
 		}, this), 200);
 
 		// Remember that?
-		if (this.id && typeof Storage !== 'undefined')
+		if (!this.isNew && typeof Storage !== 'undefined')
 		{
 			var collapsedBlocks = Craft.MatrixInput.getCollapsedBlockIds(),
 				collapsedBlocksIndex = $.inArray(''+this.id, collapsedBlocks);
@@ -458,6 +513,15 @@ var MatrixBlock = Garnish.Base.extend({
 				collapsedBlocks.splice(collapsedBlocksIndex, 1);
 				Craft.MatrixInput.setCollapsedBlockIds(collapsedBlocks);
 			}
+		}
+
+		if (!this.isNew)
+		{
+			Craft.MatrixInput.forgetCollapsedBlockId(this.id);
+		}
+		else if (this.$collapsedInput)
+		{
+			this.$collapsedInput.val('');
 		}
 
 		this.collapsed = false;
@@ -536,8 +600,10 @@ var MatrixBlock = Garnish.Base.extend({
 
 	selfDestruct: function()
 	{
-		this.$container.animate(this.matrix.getHiddenBlockCss(this.$container), 'fast', $.proxy(function() {
+		this.$container.animate(this.matrix.getHiddenBlockCss(this.$container), 'fast', $.proxy(function()
+		{
 			this.$container.remove();
+			this.matrix.updateAddBlockBtn();
 		}, this));
 	}
 });

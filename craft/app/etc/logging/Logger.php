@@ -18,14 +18,20 @@ class Logger extends \CLogger
 	 * Logs a message.
 	 * Messages logged by this method may be retrieved back via {@link getLogs}.
 	 *
-	 * @param string $message  The mssage to be logged
+	 * @param string $message  The message to be logged
 	 * @param string $level    The level of the message (e.g. 'Trace', 'Warning', 'Error'). It is case-insensitive.
 	 * @param bool   $force    Whether for force the message to be logged regardless of category or level
 	 * @param string $category The category of the message (e.g. 'system.web'). It is case-insensitive.
+	 * @param string $plugin   The plugin handle that made the log call.  If null, will be set to 'craft'. Use for determining which log file to write to.
 	 */
-	public function log($message, $level = 'info', $force = false, $category = 'application')
+	public function log($message, $level = 'info', $force = false, $category = 'application', $plugin = null)
 	{
-		$this->_logs[] = array($message, $level, $category, microtime(true), $force);
+		if (!$plugin)
+		{
+			$plugin = 'craft';
+		}
+
+		$this->_logs[] = array($message, $level, $category, microtime(true), $force, $plugin);
 		$this->_logCount++;
 
 		if ($this->autoFlush > 0 && $this->_logCount >= $this->autoFlush && !$this->_processing)
@@ -61,24 +67,24 @@ class Logger extends \CLogger
 	 */
 	public function getLogs($levels = '', $categories = array(), $except = array())
 	{
-		$this->_levels = preg_split('/[\s,]+/', mb_strtolower($levels), -1, PREG_SPLIT_NO_EMPTY);
+		$this->_levels = preg_split('/[\s,]+/', StringHelper::toLowerCase($levels), -1, PREG_SPLIT_NO_EMPTY);
 
 		if (is_string($categories))
 		{
-			$this->_categories = preg_split('/[\s,]+/', mb_strtolower($categories), -1, PREG_SPLIT_NO_EMPTY);
+			$this->_categories = preg_split('/[\s,]+/', StringHelper::toLowerCase($categories), -1, PREG_SPLIT_NO_EMPTY);
 		}
 		else
 		{
-			$this->_categories = array_filter(array_map('mb_strtolower', $categories));
+			$this->_categories = array_filter(array_map(array('Craft\StringHelper', 'toLowerCase'), $categories));
 		}
 
 		if (is_string($except))
 		{
-			$this->_except = preg_split('/[\s,]+/', mb_strtolower($except), -1, PREG_SPLIT_NO_EMPTY);
+			$this->_except = preg_split('/[\s,]+/', StringHelper::toLowerCase($except), -1, PREG_SPLIT_NO_EMPTY);
 		}
 		else
 		{
-			$this->_except = array_filter(array_map('mb_strtolower', $except));
+			$this->_except = array_filter(array_map(array('Craft\StringHelper', 'toLowerCase'), $except));
 		}
 
 		$ret = $this->_logs;
@@ -116,7 +122,7 @@ class Logger extends \CLogger
 	 */
 	protected function filterAllCategories($value, $index)
 	{
-		$cat = mb_strtolower($value[$index]);
+		$cat = StringHelper::toLowerCase($value[$index]);
 		$ret = empty($this->_categories);
 
 		foreach($this->_categories as $category)
@@ -159,6 +165,6 @@ class Logger extends \CLogger
 			}
 		}
 
-		return in_array(mb_strtolower($value[1]), $this->_levels);
+		return in_array(StringHelper::toLowerCase($value[1]), $this->_levels);
 	}
 }

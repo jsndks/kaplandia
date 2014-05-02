@@ -73,7 +73,6 @@ class ImagesService extends BaseApplicationComponent
 	public function loadImage($path)
 	{
 		$image = new Image();
-		$this->checkMemoryForImage($path);
 		$image->loadImage($path);
 		return $image;
 	}
@@ -82,7 +81,7 @@ class ImagesService extends BaseApplicationComponent
 	 * Determines if there is enough memory to process this image.  Adapted from http://www.php.net/manual/en/function.imagecreatefromjpeg.php#64155.
 	 * Will first attempt to do it with available memory. If that fails will bump the memory to phpMaxMemoryLimit, then try again.
 	 *
-	 * @param      $filePath The path to the image file.
+	 * @param string $filePath The path to the image file.
 	 * @param bool $toTheMax If set to true, will set the PHP memory to the config setting phpMaxMemoryLimit.
 	 * @return bool
 	 */
@@ -133,7 +132,6 @@ class ImagesService extends BaseApplicationComponent
 	 */
 	public function cleanImage($filePath)
 	{
-		$image = new Image();
-		return $image->loadImage($filePath)->saveAs($filePath, true);
+		return $this->loadImage($filePath)->saveAs($filePath, true);
 	}
 }

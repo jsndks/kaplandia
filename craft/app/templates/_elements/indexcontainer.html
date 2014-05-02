@@ -6,10 +6,40 @@
 	"Display as thumbnails"
 %}
 
+{% set context = context is defined ? context : 'index' %}
+{% set showStatusMenu = (showStatusMenu is defined and showStatusMenu != 'auto' ? showStatusMenu : elementType.hasStatuses()) %}
+{% set showLocaleMenu = (craft.isLocalized() and context == 'index' ? (showLocaleMenu is defined and showLocaleMenu != 'auto' ? showLocaleMenu : elementType.isLocalized()) : false) %}
+
 <div class="main">
 	<div class="toolbar">
-		<table>
+		<table class="inputs fullwidth">
 			<tr>
+				{% if showStatusMenu %}
+					<td class="thin">
+						<div class="btn menubtn statusmenubtn"><span class="status"></span>{{ "All"|t }}</div>
+						<div class="menu padded">
+							<ul>
+								<li><a data-status="" class="sel"><span class="status"></span>{{ "All"|t }}</a></li>
+								{% for status, label in elementType.getStatuses() %}
+									<li><a data-status="{{ status }}"><span class="status {{ status }}"></span> {{ label }}</a></li>
+								{% endfor %}
+							</ul>
+						</div>
+					</td>
+				{% endif %}
+				{% if showLocaleMenu %}
+					{% set currentLocale = craft.i18n.getCurrentLocale() %}
+					<td class="thin">
+						<div class="btn menubtn localemenubtn">{{ currentLocale.getName() }}</div>
+						<div class="menu padded">
+							<ul>
+								{% for locale in craft.i18n.getSiteLocales() if user.can('editLocale:'~locale.getId()) %}
+									<li><a{% if locale.getId() == currentLocale.getId() %} class="sel"{% endif %} data-locale="{{ locale.getId() }}">{{ locale.getName() }}</a></li>
+								{% endfor %}
+							</ul>
+						</div>
+					</td>
+				{% endif %}
 				<td>
 					<div class="texticon search icon">
 						{{ text({

@@ -34,7 +34,7 @@ class CraftVariable
 			// Variables should already be imported by the plugin service, but let's double check.
 			if (!class_exists($className))
 			{
-				Craft::import('plugins.'.mb_strtolower($pluginName).'.variables.'.$pluginName.'Variable');
+				Craft::import('plugins.'.StringHelper::toLowerCase($pluginName).'.variables.'.$pluginName.'Variable');
 			}
 
 			return new $className;
@@ -70,13 +70,13 @@ class CraftVariable
 	}
 
 	/**
-	 * Returns the packages in this Craft install, as defined by the craft_info table.
+	 * Returns whether this site has multiple locales.
 	 *
-	 * @return array
+	 * @return bool
 	 */
-	public function getPackages()
+	public function isLocalized()
 	{
-		return craft()->getPackages();
+		return craft()->isLocalized();
 	}
 
 	/**
@@ -84,6 +84,7 @@ class CraftVariable
 	 *
 	 * @param $packageName;
 	 * @return bool
+	 * @Deprecated Deprecated in 2.0
 	 */
 	public function hasPackage($packageName)
 	{
@@ -109,6 +110,15 @@ class CraftVariable
 	public function assets($criteria = null)
 	{
 		return craft()->elements->getCriteria(ElementType::Asset, $criteria);
+	}
+
+	/**
+	 * @param array|null $criteria
+	 * @return ElementCriteriaModel
+	 */
+	public function categories($criteria = null)
+	{
+		return craft()->elements->getCriteria(ElementType::Category, $criteria);
 	}
 
 	/**
@@ -152,11 +162,19 @@ class CraftVariable
 	}
 
 	/**
+	 * @return DeprecatorVariable
+	 */
+	public function deprecator()
+	{
+		return new DeprecatorVariable();
+	}
+
+	/**
 	 * @return EmailMessagesVariable
 	 */
 	public function emailMessages()
 	{
-		if (craft()->hasPackage(CraftPackage::Rebrand))
+		if (craft()->getEdition() >= Craft::Client)
 		{
 			return new EmailMessagesVariable();
 		}
@@ -184,7 +202,7 @@ class CraftVariable
 	 */
 	public function entryRevisions()
 	{
-		if (craft()->hasPackage(CraftPackage::PublishPro))
+		if (craft()->getEdition() >= Craft::Client)
 		{
 			return new EntryRevisionsVariable();
 		}
@@ -227,7 +245,7 @@ class CraftVariable
 	 */
 	public function rebrand()
 	{
-		if (craft()->hasPackage(CraftPackage::Rebrand))
+		if (craft()->getEdition() >= Craft::Client)
 		{
 			if (!isset($this->_rebrandVariable))
 			{
@@ -280,6 +298,14 @@ class CraftVariable
 	}
 
 	/**
+	 * @return TasksVariable
+	 */
+	public function tasks()
+	{
+		return new TasksVariable();
+	}
+
+	/**
 	 * @return UpdatesVariable
 	 */
 	public function updates()
@@ -293,7 +319,7 @@ class CraftVariable
 	 */
 	public function users($criteria = null)
 	{
-		if (craft()->hasPackage(CraftPackage::Users))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			return craft()->elements->getCriteria(ElementType::User, $criteria);
 		}
@@ -304,7 +330,7 @@ class CraftVariable
 	 */
 	public function userGroups()
 	{
-		if (craft()->hasPackage(CraftPackage::Users))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			return new UserGroupsVariable();
 		}
@@ -315,7 +341,7 @@ class CraftVariable
 	 */
 	public function userPermissions()
 	{
-		if (craft()->hasPackage(CraftPackage::Users))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			return new UserPermissionsVariable();
 		}

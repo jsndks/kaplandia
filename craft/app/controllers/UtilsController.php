@@ -23,16 +23,29 @@ class UtilsController extends BaseController
 	{
 		// Only admins.
 		craft()->userSession->requireAdmin();
-
-		// Give 'er all we've got.
-		craft()->config->maxPowerCaptain();
 	}
 
 	/**
-	 * @return array|mixed|string
+	 * Server info
 	 */
-	public function actionGetPHPInfo()
+	public function actionServerInfo()
 	{
+		// Run the requirements checker
+		$reqCheck = new RequirementsChecker();
+		$reqCheck->run();
+
+		$this->renderTemplate('utils/serverinfo', array(
+			'requirements' => $reqCheck->getRequirements(),
+		));
+	}
+
+	/**
+	 * PHP info
+	 */
+	public function actionPhpInfo()
+	{
+		craft()->config->maxPowerCaptain();
+
 		ob_start();
 		phpinfo(-1);
 		$phpInfo = ob_get_clean();
@@ -113,14 +126,18 @@ class UtilsController extends BaseController
 			}
 		}
 
-		$this->renderTemplate('utils/phpinfo', array('phpInfo' => $phpInfo));
+		$this->renderTemplate('utils/phpinfo', array(
+			'phpInfo' => $phpInfo
+		));
 	}
 
 	/**
-	 * @param array $variables
+	 * Logs
 	 */
-	public function actionGetLogs(array $variables = array())
+	public function actionLogs(array $variables = array())
 	{
+		craft()->config->maxPowerCaptain();
+
 		if (IOHelper::folderExists(craft()->path->getLogPath()))
 		{
 			$dateTimePattern = '/^[0-9]{4}\/[0-9]{2}\/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/';
@@ -313,8 +330,66 @@ class UtilsController extends BaseController
 			// Because ascending order is stupid.
 			$logEntries = array_reverse($logEntries);
 
-			$this->renderTemplate('utils/logviewer', array('logEntries' => $logEntries, 'logFileNames' => $logFileNames, 'currentLogFileName' => $currentLogFileName));
+			$this->renderTemplate('utils/logs', array(
+				'logEntries'         => $logEntries,
+				'logFileNames'       => $logFileNames,
+				'currentLogFileName' => $currentLogFileName
+			));
 		}
+	}
+
+	/**
+	 * Deprecation Errors
+	 */
+	public function actionDeprecationErrors()
+	{
+		craft()->templates->includeCssResource('css/deprecator.css');
+		craft()->templates->includeJsResource('js/deprecator.js');
+
+		$this->renderTemplate('utils/deprecationerrors', array(
+			'logs' => craft()->deprecator->getLogs()
+		));
+	}
+
+	/**
+	 * View stack trace for a deprecator log entry.
+	 */
+	public function actionGetDeprecationErrorTracesModal()
+	{
+		$this->requireAjaxRequest();
+
+		$logId = craft()->request->getRequiredParam('logId');
+		$log = craft()->deprecator->getLogById($logId);
+
+		return $this->renderTemplate('utils/deprecationerrors/_tracesmodal',
+			array('log' => $log)
+		);
+	}
+
+	/**
+	 * Deletes all deprecation errors.
+	 */
+	public function actionDeleteAllDeprecationErrors()
+	{
+		$this->requirePostRequest();
+		$this->requireAjaxRequest();
+
+		craft()->deprecator->deleteAllLogs();
+		craft()->end();
+	}
+
+	/**
+	 * Deletes a deprecation error.
+	 */
+	public function actionDeleteDeprecationError()
+	{
+		$this->requirePostRequest();
+		$this->requireAjaxRequest();
+
+		$logId = craft()->request->getRequiredPost('logId');
+
+		craft()->deprecator->deleteLogById($logId);
+		craft()->end();
 	}
 
 	/**
@@ -333,5 +408,96 @@ class UtilsController extends BaseController
 		}
 
 		return $arrayToClean;
+	}
+
+	/**
+	 * @param  $backTrace
+	 * @return string
+	 */
+	private function _formatStackTrace($backTrace)
+	{
+		$return = array();
+
+		foreach ($backTrace as $step => $call)
+		{
+			$object = '';
+
+			if (isset($call['class']))
+			{
+				$object = $call['class'];
+
+				if (is_array($call['args']))
+				{
+					if (count($call['args']) > 0)
+					{
+						foreach ($call['args'] as &$arg)
+						{
+							$this->_getArg($arg);
+						}
+					}
+					else
+					{
+						$call['args'] = array('array()');
+					}
+				}
+			}
+
+			$str = '<b>#'.str_pad($step, 3, ' ').'</b>';
+			$str .= ($object !== '' ? $object.'->' : '');
+			$str .= $call['method'].'('.implode(', ', $call['args']).') called at “'.$call['file'].'” line '.$call['line'];
+
+			$return[] = $str;
+		}
+
+		return implode('<br /><br />', $return);
+	}
+
+	/**
+	 * @param $arg
+	 */
+	private function _getArg(&$arg)
+	{
+		if (is_object($arg) || is_array($arg))
+		{
+			$arr = (array)$arg;
+			$args = array();
+
+			foreach ($arr as $key => $value)
+			{
+				if (strpos($key, chr(0)) !== false)
+				{
+					// Private variable found.
+					$key = '';
+				}
+
+				if (is_array($value))
+				{
+					$args[] = '['.$key.'] => '.$this->_getArg($value);
+				}
+				else
+				{
+					$args[] = '['.$key.'] => '.(string)$value;
+				}
+
+
+			}
+
+			if (is_object($arg))
+			{
+				$arg = get_class($arg) . ' Object ('.implode(',', $args).')';
+			}
+			else if (is_array($arg) && count($arg) == 0)
+			{
+				$arg = 'array()';
+			}
+			else if (is_array($arg) && count($arg) > 0)
+			{
+				$arg = 'array('.implode(',', $args).')';
+			}
+		}
+		else if (is_array($arg) && count($arg) == 0)
+		{
+			$arg = '';
+		}
 	}
 }

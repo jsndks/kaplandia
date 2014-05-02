@@ -119,11 +119,6 @@ class CDateFormatter extends CComponent
 	 */
 	public function formatDateTime($timestamp,$dateWidth='medium',$timeWidth='medium')
 	{
-		/* CORE HACK */
-		if($timestamp instanceof DateTime)
-			$timestamp=$timestamp->getTimestamp();
-		/* END CORE HACK */
-
 		if(!empty($dateWidth))
 			$date=$this->format($this->_locale->getDateFormat($dateWidth),$timestamp);
 

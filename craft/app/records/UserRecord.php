@@ -39,7 +39,8 @@ class UserRecord extends BaseRecord
 			'password'                   => array(AttributeType::String, 'maxLength' => 255, 'column' => ColumnType::Char),
 			'preferredLocale'            => array(AttributeType::Locale),
 			'admin'                      => array(AttributeType::Bool),
-			'status'                     => array(AttributeType::Enum, 'values' => array('locked', 'suspended', 'pending', 'active', 'archived'), 'default' => 'pending'),
+			'client'                     => array(AttributeType::Bool),
+			'status'                     => array(AttributeType::Enum, 'values' => array(UserStatus::Active, UserStatus::Locked, UserStatus::Suspended, UserStatus::Pending, UserStatus::Archived), 'default' => UserStatus::Pending),
 			'lastLoginDate'              => array(AttributeType::DateTime),
 			'lastLoginAttemptIPAddress'  => array(AttributeType::String, 'maxLength' => 45),
 			'invalidLoginWindowStart'    => array(AttributeType::DateTime),
@@ -48,6 +49,7 @@ class UserRecord extends BaseRecord
 			'lockoutDate'                => array(AttributeType::DateTime),
 			'verificationCode'           => array(AttributeType::String, 'maxLength' => 100, 'column' => ColumnType::Char),
 			'verificationCodeIssuedDate' => array(AttributeType::DateTime),
+			'unverifiedEmail'            => array(AttributeType::Email),
 			'passwordResetRequired'      => array(AttributeType::Bool),
 			'lastPasswordChangeDate'     => array(AttributeType::DateTime),
 		);
@@ -63,12 +65,12 @@ class UserRecord extends BaseRecord
 			'preferredLocale' => array(static::BELONGS_TO, 'LocaleRecord', 'preferredLocale', 'onDelete' => static::SET_NULL, 'onUpdate' => static::CASCADE),
 		);
 
-		if (craft()->hasPackage(CraftPackage::Users))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			$relations['groups']  = array(static::MANY_MANY, 'UserGroupRecord', 'usergroups_users(userId, groupId)');
 		}
 
-		$relations['sessions'] = array(static::HAS_MANY, 'SessionRecord', 'userId');
+		$relations['sessions']              = array(static::HAS_MANY, 'SessionRecord', 'userId');
 
 		return $relations;
 	}

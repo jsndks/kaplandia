@@ -14,7 +14,7 @@ namespace Craft;
 /**
  * Just a duplicate of the consts in \CLogger for consistency!
  */
-class LogLevel
+abstract class LogLevel extends BaseEnum
 {
 	const Trace   = 'trace';
 	const Warning = 'warning';

@@ -8,7 +8,7 @@
 
 
 {% set content %}
-	<form method="post" action="" accept-charset="UTF-8" data-saveshortcut="1">
+	<form method="post" accept-charset="UTF-8" data-saveshortcut="1">
 		<input type="hidden" name="action" value="systemSettings/saveGeneralSettings">
 		<input type="hidden" name="redirect" value="settings">
 
@@ -35,6 +35,7 @@
 		{{ forms.textField({
 			label: "Site URL"|t,
 			id: 'siteUrl',
+			class: 'ltr',
 			name: 'siteUrl',
 			value: info.siteUrl,
 			required: true,
@@ -54,13 +55,15 @@
 		</div>
 	</form>
 
-	{% if craft.hasPackage('Rebrand') %}
+	{% if CraftEdition >= CraftClient %}
 		<hr>
 
 		{% includeTranslations
 			"Are you sure you want to delete the logo?"
 		%}
 
+		{% includeJsResource "lib/fileupload/jquery.ui.widget.js" %}
+		{% includeJsResource "lib/fileupload/jquery.fileupload.js" %}
 		{% includeJsResource "lib/imgareaselect/jquery.imgareaselect.pack.js" %}
 		{% includeJsResource "js/rebrand.js" %}
 		{% includeCssResource "lib/imgareaselect/imgareaselect-animated.css" %}

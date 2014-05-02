@@ -17,6 +17,76 @@ namespace Craft;
 class AppVariable
 {
 	/**
+	 * Returns the Craft edition.
+	 *
+	 * @return string
+	 */
+	public function getEdition()
+	{
+		return craft()->getEdition();
+	}
+
+	/**
+	 * Returns the name of the Craft edition.
+	 *
+	 * @return string
+	 */
+	public function getEditionName()
+	{
+		return craft()->getEditionName();
+	}
+
+	/**
+	 * Returns the edition Craft is actually licensed to run in.
+	 *
+	 * @return int|null
+	 */
+	public function getLicensedEdition()
+	{
+		return craft()->getLicensedEdition();
+	}
+
+	/**
+	 * Returns the name of the edition Craft is actually licensed to run in.
+	 *
+	 * @return string|null
+	 */
+	public function getLicensedEditionName()
+	{
+		return craft()->getLicensedEditionName();
+	}
+
+	/**
+	 * Returns whether Craft is running with the wrong edition.
+	 *
+	 * @return bool
+	 */
+	public function hasWrongEdition()
+	{
+		return craft()->hasWrongEdition();
+	}
+
+	/**
+	 * Returns whether Craft is elligible to be upgraded to a different edition.
+	 *
+	 * @return bool
+	 */
+	public function canUpgradeEdition()
+	{
+		return craft()->canUpgradeEdition();
+	}
+
+	/**
+	 * Returns whether Craft is running on a domain that is elligible to test out the editions.
+	 *
+	 * @return bool
+	 */
+	public function canTestEditions()
+	{
+		return craft()->canTestEditions();
+	}
+
+	/**
 	 * Returns the installed Craft version.
 	 *
 	 * @return string
@@ -140,5 +210,15 @@ class AppVariable
 
 		// Convert MB to B and return
 		return $uploadMb * 1048576; // 1024 x 1024 = 1048576
+	}
+
+	/**
+	 * Returns a list of file kinds.
+	 *
+	 * @return array
+	 */
+	public function getFileKinds()
+	{
+		return IOHelper::getFileKinds();
 	}
 }

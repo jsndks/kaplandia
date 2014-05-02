@@ -43,9 +43,14 @@ class ClearCachesTool extends BaseTool
 	 */
 	public function getOptionsHtml()
 	{
+		$caches = $this->_getFolders();
+		$caches['assetTransformIndex'] = Craft::t('Asset transform index');
+		$caches['assetIndexingData'] = Craft::t('Asset indexing data');
+		$caches['templateCaches'] = Craft::t('Template caches');
+
 		return craft()->templates->render('_includes/forms/checkboxSelect', array(
-			'name'    => 'folders',
-			'options' => $this->_getFolders()
+			'name'    => 'caches',
+			'options' => $caches
 		));
 	}
 
@@ -67,18 +72,28 @@ class ClearCachesTool extends BaseTool
 	 */
 	public function performAction($params = array())
 	{
-		if (!isset($params['folders']))
+		if (!isset($params['caches']))
 		{
 			return;
 		}
 
-		if ($params['folders'] == '*')
+		$allFolderKeys = array_keys($this->_getFolders());
+
+		if ($params['caches'] == '*')
 		{
-			$folders = array_keys($this->_getFolders());
+			$folders = $allFolderKeys;
 		}
 		else
 		{
-			$folders = $params['folders'];
+			$folders = array();
+
+			foreach ($params['caches'] as $cacheKey)
+			{
+				if (in_array($cacheKey, $allFolderKeys))
+				{
+					$folders[] = $cacheKey;
+				}
+			}
 		}
 
 		$allFolders = array_keys($this->_getFolders(false));
@@ -89,10 +104,31 @@ class ClearCachesTool extends BaseTool
 			{
 				if (md5($allFolder) == $folder)
 				{
-					IOHelper::clearFolder($allFolder, true);
-					break;
+					if ($allFolder == 'dataCache')
+					{
+						craft()->cache->flush();
+					}
+					else
+					{
+						IOHelper::clearFolder($allFolder, true);
+						break;
+					}
 				}
 			}
+		}
+
+		if ($params['caches'] == '*' || in_array('templateCaches', $params['caches']))
+		{
+			craft()->templateCache->deleteAllCaches();
+		}
+
+		if ($params['caches'] == '*' || in_array('assetTransformIndex', $params['caches']))
+		{
+			craft()->db->createCommand()->truncateTable('assettransformindex');
+		}
+		if ($params['caches'] == '*' || in_array('assetIndexingData', $params['caches']))
+		{
+			craft()->db->createCommand()->truncateTable('assetindexdata');
 		}
 	}
 
@@ -108,7 +144,8 @@ class ClearCachesTool extends BaseTool
 		$runtimePath = craft()->path->getRuntimePath();
 
 		$folders = array(
-			$obfuscate ? md5($runtimePath.'cache') : $runtimePath.'cache'                           => Craft::t('File caches'),
+			$obfuscate ? md5('dataCache') : 'dataCache'                                             => Craft::t('Data caches'),
+			$obfuscate ? md5($runtimePath.'cache') : $runtimePath.'cache'                           => Craft::t('RSS caches'),
 			$obfuscate ? md5($runtimePath.'assets') : $runtimePath.'assets'                         => Craft::t('Asset thumbs'),
 			$obfuscate ? md5($runtimePath.'compiled_templates') : $runtimePath.'compiled_templates' => Craft::t('Compiled templates'),
 			$obfuscate ? md5($runtimePath.'temp') : $runtimePath.'temp'                             => Craft::t('Temp files'),

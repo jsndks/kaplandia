@@ -1,9 +1,9 @@
 {% extends "utils/_layout" %}
 
-{% set content %}
+{% block content %}
 	{% for section, data in phpInfo %}
 		<h2>{{ section }}</h2>
-		<table class="data">
+		<table class="data fullwidth">
 			{% for setting, value in data %}
 				<tr>
 					<th class="light" width="300">{{ setting|raw }}</th>
@@ -22,4 +22,4 @@
 			{% endfor %}
 		</table>
 	{% endfor %}
-{% endset %}
+{% endblock %}

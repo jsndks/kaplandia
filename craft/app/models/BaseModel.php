@@ -82,16 +82,18 @@ abstract class BaseModel extends \CModel
 	{
 		if (in_array($name, $this->attributeNames()))
 		{
+			$copy = $this->copy();
+
 			if (count($arguments) == 1)
 			{
-				$this->setAttribute($name, $arguments[0]);
+				$copy->setAttribute($name, $arguments[0]);
 			}
 			else
 			{
-				$this->setAttribute($name, $arguments);
+				$copy->setAttribute($name, $arguments);
 			}
 
-			return $this;
+			return $copy;
 		}
 		else
 		{
@@ -301,10 +303,17 @@ abstract class BaseModel extends \CModel
 						$value = JsonHelper::decode($value);
 					}
 
-					if ($config['model'])
+					if (is_array($value))
 					{
-						$class = __NAMESPACE__.'\\'.$config['model'];
-						$value = $class::populateModel($value);
+						if ($config['model'])
+						{
+							$class = __NAMESPACE__.'\\'.$config['model'];
+							$value = $class::populateModel($value);
+						}
+						else
+						{
+							$value = ModelHelper::expandModelsInArray($value);
+						}
 					}
 
 					break;
@@ -383,6 +392,34 @@ abstract class BaseModel extends \CModel
 		}
 
 		return false;
+	}
+
+	/**
+	 * Returns all errors in a single list.
+	 *
+	 * @return array
+	 */
+	public function getAllErrors()
+	{
+		$errors = array();
+
+		foreach ($this->getErrors() as $attributeErrors)
+		{
+			$errors = array_merge($errors, $attributeErrors);
+		}
+
+		return $errors;
+	}
+
+	/**
+	 * Returns a copy of this model.
+	 *
+	 * @return BaseModel
+	 */
+	public function copy()
+	{
+		$class = get_class($this);
+		return new $class($this->getAttributes());
 	}
 
 	/**

@@ -20,7 +20,7 @@ class HandleValidator extends \CValidator
 
 	public $reservedWords = array();
 
-	protected static $baseReservedWords = array('id', 'dateCreated', 'dateUpdated', 'uid', 'this', 'true', 'false', 'y', 'n', 'yes', 'no', 'classHandle', 'handle', 'name', 'attributeNames', 'attributes', 'attribute', 'rules', 'attributeLabels', 'fields', 'content', 'rawContent');
+	protected static $baseReservedWords = array('id', 'dateCreated', 'dateUpdated', 'uid', 'this', 'true', 'false', 'y', 'n', 'yes', 'no', 'classHandle', 'handle', 'name', 'attributeNames', 'attributes', 'attribute', 'rules', 'attributeLabels', 'fields', 'content', 'rawContent', 'section');
 
 	/**
 	 * @param $object
@@ -34,8 +34,8 @@ class HandleValidator extends \CValidator
 		if ($handle)
 		{
 			$reservedWords = array_merge($this->reservedWords, static::$baseReservedWords);
-			$reservedWords = array_map('mb_strtolower', $reservedWords);
-			$lcHandle = mb_strtolower($handle);
+			$reservedWords = array_map(array('Craft\StringHelper', 'toLowerCase'), $reservedWords);
+			$lcHandle = StringHelper::toLowerCase($handle);
 
 			if (in_array($lcHandle, $reservedWords))
 			{

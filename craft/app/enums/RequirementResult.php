@@ -14,7 +14,7 @@ namespace Craft;
 /**
  *
  */
-class RequirementResult
+abstract class RequirementResult extends BaseEnum
 {
 	const Success = 'success';
 	const Failed =  'failed';

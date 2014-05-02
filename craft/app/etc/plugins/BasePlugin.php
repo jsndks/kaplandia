@@ -26,6 +26,16 @@ abstract class BasePlugin extends BaseSavableComponentType
 	protected $componentType = 'Plugin';
 
 	/**
+	 * Returns the plugin's source language
+	 *
+	 * @return string
+	 */
+	public function getSourceLanguage()
+	{
+		return craft()->sourceLanguage;
+	}
+
+	/**
 	 * Returns the plugin’s version.
 	 *
 	 * @abstract
@@ -123,7 +133,7 @@ abstract class BasePlugin extends BaseSavableComponentType
 	public function getRecords($scenario = null)
 	{
 		$records = array();
-		$classes = craft()->plugins->getPluginComponentClassesByType($this->getClassHandle(), 'record');
+		$classes = craft()->plugins->getPluginClasses($this, 'records', 'Record', false);
 
 		foreach ($classes as $class)
 		{
@@ -135,5 +145,29 @@ abstract class BasePlugin extends BaseSavableComponentType
 		}
 
 		return $records;
+	}
+
+	/**
+	 * A wrapper for logging with plugins.
+	 *
+	 * @param        $msg
+	 * @param string $level
+	 * @param bool   $force
+	 */
+	public static function log($msg, $level = LogLevel::Info, $force = false)
+	{
+		$plugin = get_called_class();
+
+		// Chunk off any namespaces
+		$parts = explode('\\', $plugin);
+		if (count($parts) > 0)
+		{
+			$plugin = $parts[count($parts) - 1];
+		}
+
+		// Remove the trailing 'Plugin'.
+		$plugin = str_replace('Plugin', '', $plugin);
+
+		Craft::log($msg, $level, $force, 'plugin', StringHelper::toLowerCase($plugin));
 	}
 }

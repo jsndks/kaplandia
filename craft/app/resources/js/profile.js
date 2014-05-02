@@ -31,11 +31,13 @@
 			}
 		},
 
-		onImageSave: function (response) {
+		onImageSave: function(response)
+		{
 			refreshImage(response);
 		},
 
-		onImageDelete: function (response) {
+		onImageDelete: function(response)
+		{
 		   refreshImage(response);
 		}
 	};
@@ -59,6 +61,10 @@
 		ImageUpload = new Craft.ImageUpload(settings);
 	}
 
-	initImageUpload();
+	// Only init for existing users.
+	if ($('input[name=userId]').val())
+	{
+		initImageUpload();
+	}
 
 })(jQuery);

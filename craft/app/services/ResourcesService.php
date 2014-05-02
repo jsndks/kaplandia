@@ -16,7 +16,6 @@ namespace Craft;
  */
 class ResourcesService extends BaseApplicationComponent
 {
-
 	const DefaultUserphotoFilename = 'user.gif';
 
 	public $dateParam;
@@ -29,7 +28,7 @@ class ResourcesService extends BaseApplicationComponent
 	 */
 	public function getCachedResourcePath($path)
 	{
-		$realPath = craft()->fileCache->get('resourcePath:'.$path);
+		$realPath = craft()->cache->get('resourcePath:'.$path);
 
 		if ($realPath && IOHelper::fileExists($realPath))
 		{
@@ -50,7 +49,7 @@ class ResourcesService extends BaseApplicationComponent
 			$realPath = ':(';
 		}
 
-		craft()->fileCache->set('resourcePath:'.$path, $realPath);
+		craft()->cache->set('resourcePath:'.$path, $realPath);
 	}
 
 	/**
@@ -166,6 +165,12 @@ class ResourcesService extends BaseApplicationComponent
 					return craft()->path->getTempUploadsPath().implode('/', $segs);
 				}
 
+				case 'tempassets':
+				{
+					array_shift($segs);
+					return craft()->path->getAssetsTempSourcePath().implode('/', $segs);
+				}
+
 				case 'assetthumbs':
 				{
 					if (empty($segs[1]) || empty($segs[2]) || !is_numeric($segs[1]) || !is_numeric($segs[2]))
@@ -179,28 +184,8 @@ class ResourcesService extends BaseApplicationComponent
 						return false;
 					}
 
-					$sourceType = craft()->assetSources->getSourceTypeById($fileModel->sourceId);
-
 					$size = $segs[2];
-
-					$thumbFolder = craft()->path->getAssetsThumbsPath().$size.'/';
-					IOHelper::ensureFolderExists($thumbFolder);
-
-					$thumbPath = $thumbFolder.$fileModel->id.'.'.pathinfo($fileModel->filename, PATHINFO_EXTENSION);
-
-					if (!IOHelper::fileExists($thumbPath))
-					{
-						$sourcePath = $sourceType->getImageSourcePath($fileModel);
-						if (!IOHelper::fileExists($sourcePath))
-						{
-							return false;
-						}
-						craft()->images->loadImage($sourcePath)
-							->scaleAndCrop($size, $size)
-							->saveAs($thumbPath);
-					}
-
-					return $thumbPath;
+					return craft()->assetTransforms->getThumbServerPath($fileModel, $size);
 				}
 
 				case 'icons':
@@ -210,7 +195,7 @@ class ResourcesService extends BaseApplicationComponent
 						return false;
 					}
 
-					$ext = mb_strtolower($segs[1]);
+					$ext = StringHelper::toLowerCase($segs[1]);
 					$size = $segs[2];
 
 					$iconPath = $this->_getIconPath($ext, $size);
@@ -443,7 +428,7 @@ class ResourcesService extends BaseApplicationComponent
 			if ($ext)
 			{
 				$color = imagecolorallocate($image, 153, 153, 153);
-				$text = mb_strtoupper($ext);
+				$text = StringHelper::toUpperCase($ext);
 				$font = craft()->path->getAppPath().'etc/assets/helveticaneue-webfont.ttf';
 
 				// Get the bounding box so we can calculate the position

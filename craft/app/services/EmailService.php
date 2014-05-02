@@ -54,7 +54,7 @@ class EmailService extends BaseApplicationComponent
 	{
 		$emailModel = new EmailModel();
 
-		if (craft()->hasPackage(CraftPackage::Rebrand))
+		if (craft()->getEdition() >= Craft::Client)
 		{
 			$message = craft()->emailMessages->getMessage($key, $user->preferredLocale);
 
@@ -69,7 +69,7 @@ class EmailService extends BaseApplicationComponent
 
 		$tempTemplatesPath = '';
 
-		if (craft()->hasPackage(CraftPackage::Rebrand))
+		if (craft()->getEdition() >= Craft::Client)
 		{
 			// Is there a custom HTML template set?
 			$settings = $this->getSettings();
@@ -132,6 +132,8 @@ class EmailService extends BaseApplicationComponent
 	 */
 	public function sendTestEmail($settings)
 	{
+		$originalSettings = $this->_settings;
+
 		$this->_settings = $settings;
 
 		$user = craft()->userSession->getUser();
@@ -147,7 +149,11 @@ class EmailService extends BaseApplicationComponent
 			$newSettings[$key] = $value;
 		}
 
-		return $this->sendEmailByKey($user, 'test_email', array('settings' => $newSettings));
+		$success = $this->sendEmailByKey($user, 'test_email', array('settings' => $newSettings));
+
+		$this->_settings = $originalSettings;
+
+		return $success;
 	}
 
 	/**
@@ -238,6 +244,15 @@ class EmailService extends BaseApplicationComponent
 		else
 		{
 			$email->addAddress($user->email, $user->getFullName());
+		}
+
+		// Add any custom headers
+		if (!empty($emailModel->customHeaders))
+		{
+			foreach ($emailModel->customHeaders as $headerName => $headerValue)
+			{
+				$email->addCustomHeader($headerName, $headerValue);
+			}
 		}
 
 		// Add any BCC's

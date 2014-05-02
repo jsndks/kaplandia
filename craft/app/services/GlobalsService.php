@@ -153,19 +153,27 @@ class GlobalsService extends BaseApplicationComponent
 	/**
 	 * Returns a global set by its ID.
 	 *
-	 * @param $globalSetId
+	 * @param int $globalSetId
+	 * @param string|null $localeId
 	 * @return GlobalSetModel|null
 	 */
-	public function getSetById($globalSetId)
+	public function getSetById($globalSetId, $localeId = null)
 	{
-		if (!isset($this->_allGlobalSets))
+		if (!$localeId || $localeId == craft()->language)
 		{
-			$this->getAllSets();
-		}
+			if (!isset($this->_allGlobalSets))
+			{
+				$this->getAllSets();
+			}
 
-		if (isset($this->_globalSetsById[$globalSetId]))
+			if (isset($this->_globalSetsById[$globalSetId]))
+			{
+				return $this->_globalSetsById[$globalSetId];
+			}
+		}
+		else
 		{
-			return $this->_globalSetsById[$globalSetId];
+			return craft()->elements->getElementById($globalSetId, ElementType::GlobalSet, $localeId);
 		}
 	}
 
@@ -182,7 +190,7 @@ class GlobalsService extends BaseApplicationComponent
 
 		if (!$isNewSet)
 		{
-			$globalSetRecord = GlobalSetRecord::model()->with('element')->findById($globalSet->id);
+			$globalSetRecord = GlobalSetRecord::model()->findById($globalSet->id);
 
 			if (!$globalSetRecord)
 			{
@@ -190,70 +198,53 @@ class GlobalsService extends BaseApplicationComponent
 			}
 
 			$oldSet = GlobalSetModel::populateModel($globalSetRecord);
-			$elementRecord = $globalSetRecord->element;
 		}
 		else
 		{
 			$globalSetRecord = new GlobalSetRecord();
-
-			$elementRecord = new ElementRecord();
-			$elementRecord->type = ElementType::GlobalSet;
 		}
 
 		$globalSetRecord->name   = $globalSet->name;
 		$globalSetRecord->handle = $globalSet->handle;
+
 		$globalSetRecord->validate();
 		$globalSet->addErrors($globalSetRecord->getErrors());
-
-		$elementRecord->enabled = $globalSet->enabled;
-		$elementRecord->validate();
-		$globalSet->addErrors($elementRecord->getErrors());
 
 		if (!$globalSet->hasErrors())
 		{
 			$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
 			try
 			{
-				if (!$isNewSet && $oldSet->fieldLayoutId)
-				{
-					// Drop the old field layout
-					craft()->fields->deleteLayoutById($oldSet->fieldLayoutId);
-				}
-
-				// Save the new one
-				$fieldLayout = $globalSet->getFieldLayout();
-				craft()->fields->saveLayout($fieldLayout, false);
-
-				// Update the set record/model with the new layout ID
-				$globalSet->fieldLayoutId = $fieldLayout->id;
-				$globalSetRecord->fieldLayoutId = $fieldLayout->id;
-
-				// Save the element record first
-				$elementRecord->save(false);
-
-				if ($isNewSet)
+				if (craft()->elements->saveElement($globalSet, false))
 				{
 					// Now that we have an element ID, save it on the other stuff
-					$globalSet->id = $elementRecord->id;
-					$globalSetRecord->id = $globalSet->id;
+					if ($isNewSet)
+					{
+						$globalSetRecord->id = $globalSet->id;
+					}
 
-					// Create a new row in elements_i18n
-					$elementLocaleRecord = new ElementLocaleRecord();
-					$elementLocaleRecord->elementId = $globalSet->id;
-					$elementLocaleRecord->locale    = $globalSet->locale;
-					$elementLocaleRecord->save();
+					if (!$isNewSet && $oldSet->fieldLayoutId)
+					{
+						// Drop the old field layout
+						craft()->fields->deleteLayoutById($oldSet->fieldLayoutId);
+					}
 
-					// Create a row in content
-					$content = new ContentModel();
-					$content->elementId = $globalSet->id;
-					craft()->content->saveContent($content);
-				}
+					// Save the new one
+					$fieldLayout = $globalSet->getFieldLayout();
+					craft()->fields->saveLayout($fieldLayout, false);
 
-				$globalSetRecord->save(false);
+					// Update the set record/model with the new layout ID
+					$globalSet->fieldLayoutId = $fieldLayout->id;
+					$globalSetRecord->fieldLayoutId = $fieldLayout->id;
 
-				if ($transaction !== null)
-				{
-					$transaction->commit();
+					$globalSetRecord->save(false);
+
+					if ($transaction !== null)
+					{
+						$transaction->commit();
+					}
+
+					return true;
 				}
 			}
 			catch (\Exception $e)
@@ -265,13 +256,9 @@ class GlobalsService extends BaseApplicationComponent
 
 				throw $e;
 			}
+		}
 
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return false;
 	}
 
 	/**
@@ -331,22 +318,8 @@ class GlobalsService extends BaseApplicationComponent
 	 */
 	public function saveContent(GlobalSetModel $globalSet)
 	{
-		if (craft()->content->saveElementContent($globalSet, $globalSet->getFieldLayout()))
+		if (craft()->elements->saveElement($globalSet))
 		{
-			// Create the elements_i18n row if it doesn't exist
-			$elementLocaleRecord = ElementLocaleRecord::model()->findByAttributes(array(
-				'elementId' => $globalSet->id,
-				'locale'    => $globalSet->locale
-			));
-
-			if (!$elementLocaleRecord)
-			{
-				$elementLocaleRecord = new ElementLocaleRecord();
-				$elementLocaleRecord->elementId = $globalSet->id;
-				$elementLocaleRecord->locale    = $globalSet->locale;
-				$elementLocaleRecord->save();
-			}
-
 			// Fire an 'onSaveGlobalContent' event
 			$this->onSaveGlobalContent(new Event($this, array(
 				'globalSet' => $globalSet

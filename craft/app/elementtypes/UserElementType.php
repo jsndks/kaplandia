@@ -47,6 +47,22 @@ class UserElementType extends BaseElementType
 	}
 
 	/**
+	 * Returns all of the possible statuses that elements of this type may have.
+	 *
+	 * @return array|null
+	 */
+	public function getStatuses()
+	{
+		return array(
+			UserStatus::Active    => Craft::t('Active'),
+			UserStatus::Pending   => Craft::t('Pending'),
+			UserStatus::Locked    => Craft::t('Locked'),
+			UserStatus::Suspended => Craft::t('Suspended'),
+			UserStatus::Archived  => Craft::t('Archived')
+		);
+	}
+
+	/**
 	 * Returns this element type's sources.
 	 *
 	 * @param string|null $context
@@ -61,14 +77,14 @@ class UserElementType extends BaseElementType
 			)
 		);
 
-		if (craft()->hasPackage(CraftPackage::Users))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			foreach (craft()->userGroups->getAllGroups() as $group)
 			{
 				$key = 'group:'.$group->id;
 
 				$sources[$key] = array(
-					'label'     => $group->name,
+					'label'     => Craft::t($group->name),
 					'criteria'  => array('groupId' => $group->id),
 					'hasThumbs' => true
 				);
@@ -97,7 +113,9 @@ class UserElementType extends BaseElementType
 	public function defineTableAttributes($source = null)
 	{
 		return array(
-			'username'      => Craft::t('Name'),
+			'username'      => Craft::t('Username'),
+			'firstName'     => Craft::t('First Name'),
+			'lastName'      => Craft::t('Last Name'),
 			'email'         => Craft::t('Email'),
 			'dateCreated'   => Craft::t('Join Date'),
 			'lastLoginDate' => Craft::t('Last Login'),
@@ -159,6 +177,7 @@ class UserElementType extends BaseElementType
 	{
 		return array(
 			'admin'          => AttributeType::Bool,
+			'client'         => AttributeType::Bool,
 			'can'            => AttributeType::String,
 			'email'          => AttributeType::Email,
 			'firstName'      => AttributeType::String,
@@ -174,6 +193,18 @@ class UserElementType extends BaseElementType
 	}
 
 	/**
+	 * Returns the element query condition for a custom status criteria.
+	 *
+	 * @param DbCommand $query
+	 * @param string $status
+	 * @return string|false
+	 */
+	public function getElementQueryStatusCondition(DbCommand $query, $status)
+	{
+		return 'users.status = "'.$status.'"';
+	}
+
+	/**
 	 * Modifies an element query targeting elements of this type.
 	 *
 	 * @param DbCommand $query
@@ -183,12 +214,17 @@ class UserElementType extends BaseElementType
 	public function modifyElementsQuery(DbCommand $query, ElementCriteriaModel $criteria)
 	{
 		$query
-			->addSelect('users.username, users.photo, users.firstName, users.lastName, users.email, users.admin, users.status, users.lastLoginDate, users.lockoutDate, users.preferredLocale')
+			->addSelect('users.username, users.photo, users.firstName, users.lastName, users.email, users.admin, users.client, users.status, users.lastLoginDate, users.lockoutDate, users.preferredLocale')
 			->join('users users', 'users.id = elements.id');
 
 		if ($criteria->admin)
 		{
 			$query->andWhere(DbHelper::parseParam('users.admin', $criteria->admin, $query->params));
+		}
+
+		if ($criteria->client && craft()->getEdition() == Craft::Client)
+		{
+			$query->andWhere(DbHelper::parseParam('users.client', $criteria->client, $query->params));
 		}
 
 		if ($criteria->can)
@@ -202,6 +238,7 @@ class UserElementType extends BaseElementType
 
 			$query->andWhere(array('or',
 				'users.admin = 1',
+				'users.client = 1',
 				'opt1_userpermissions.name = :permission',
 				'opt2_userpermissions.name = :permission',
 			), array(
@@ -245,11 +282,6 @@ class UserElementType extends BaseElementType
 		if ($criteria->preferredLocale)
 		{
 			$query->andWhere(DbHelper::parseParam('users.preferredLocale', $criteria->preferredLocale, $query->params));
-		}
-
-		if ($criteria->status)
-		{
-			$query->andWhere(DbHelper::parseParam('users.status', $criteria->status, $query->params));
 		}
 	}
 

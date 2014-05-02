@@ -44,9 +44,10 @@ class ElementsService extends BaseApplicationComponent
 	 *
 	 * @param int $elementId
 	 * @param string|null $type
+	 * @param string|null $localeId
 	 * @return BaseElementModel|null
 	 */
-	public function getElementById($elementId, $elementType = null)
+	public function getElementById($elementId, $elementType = null, $localeId = null)
 	{
 		if (!$elementId)
 		{
@@ -65,23 +66,36 @@ class ElementsService extends BaseApplicationComponent
 
 		$criteria = $this->getCriteria($elementType);
 		$criteria->id = $elementId;
+		$criteria->locale = $localeId;
 		$criteria->status = null;
+		$criteria->localeEnabled = null;
 		return $criteria->first();
 	}
 
 	/**
-	 * Returns the element type used by the element of a given ID.
+	 * Returns the element type(s) used by the element of a given ID(s).
 	 *
-	 * @param int $elementId
-	 * @return string|null
+	 * @param int|array $elementId
+	 * @return string|array|null
 	 */
 	public function getElementTypeById($elementId)
 	{
-		return craft()->db->createCommand()
-			->select('type')
-			->from('elements')
-			->where(array('id' => $elementId))
-			->queryScalar();
+		if (is_array($elementId))
+		{
+			return craft()->db->createCommand()
+				->selectDistinct('type')
+				->from('elements')
+				->where(array('in', 'id', $elementId))
+				->queryColumn();
+		}
+		else
+		{
+			return craft()->db->createCommand()
+				->select('type')
+				->from('elements')
+				->where(array('id' => $elementId))
+				->queryScalar();
+		}
 	}
 
 	/**
@@ -94,35 +108,22 @@ class ElementsService extends BaseApplicationComponent
 	public function findElements($criteria = null, $justIds = false)
 	{
 		$elements = array();
-		$subquery = $this->buildElementsQuery($criteria, $fieldColumns);
+		$query = $this->buildElementsQuery($criteria, $contentTable, $fieldColumns);
 
-		if ($subquery)
+		if ($query)
 		{
 			if ($criteria->search)
 			{
-				$elementIds = $this->_getElementIdsFromQuery($subquery);
+				$elementIds = $this->_getElementIdsFromQuery($query);
 				$scoredSearchResults = ($criteria->order == 'score');
 				$filteredElementIds = craft()->search->filterElementIdsByQuery($elementIds, $criteria->search, $scoredSearchResults);
-				$subquery->andWhere(array('in', 'elements.id', $filteredElementIds));
+				$query->andWhere(array('in', 'elements.id', $filteredElementIds));
 			}
-
-			$query = craft()->db->createCommand();
 
 			if ($justIds)
 			{
-				$query->select('r.id');
+				$query->select('elements.id');
 			}
-			else
-			{
-				// Tests are showing that listing out all of the columns here is actually slower
-				// than just doing SELECT * -- probably due to the large number of columns we need to select.
-				$query->select('*');
-			}
-
-			$query->from('('.$subquery->getText().') AS '.craft()->db->quoteTableName('r'))
-			      ->group('r.id');
-
-			$query->params = $subquery->params;
 
 			if ($criteria->fixedOrder)
 			{
@@ -133,7 +134,7 @@ class ElementsService extends BaseApplicationComponent
 					return array();
 				}
 
-				$query->order(craft()->db->getSchema()->orderByColumnValues('id', $ids));
+				$query->order(craft()->db->getSchema()->orderByColumnValues('elements.id', $ids));
 			}
 			else if ($criteria->order && $criteria->order != 'score')
 			{
@@ -169,27 +170,27 @@ class ElementsService extends BaseApplicationComponent
 				$query->limit($criteria->limit);
 			}
 
-			$result = $query->queryAll();
+			$results = $query->queryAll();
 
-			if ($result)
+			if ($results)
 			{
 				if ($criteria->search && $scoredSearchResults)
 				{
 					$searchPositions = array();
 
-					foreach ($result as $row)
+					foreach ($results as $result)
 					{
-						$searchPositions[] = array_search($row['id'], $filteredElementIds);
+						$searchPositions[] = array_search($result['id'], $filteredElementIds);
 					}
 
-					array_multisort($searchPositions, $result);
+					array_multisort($searchPositions, $results);
 				}
 
 				if ($justIds)
 				{
-					foreach ($result as $row)
+					foreach ($results as $result)
 					{
-						$elements[] = $row['id'];
+						$elements[] = $result['id'];
 					}
 				}
 				else
@@ -198,47 +199,47 @@ class ElementsService extends BaseApplicationComponent
 					$indexBy = $criteria->indexBy;
 					$lastElement = null;
 
-					foreach ($result as $row)
+					foreach ($results as $result)
 					{
-						if ($elementType->hasContent())
+						// Make a copy to pass to the onPopulateElement event
+						$originalResult = array_merge($result);
+
+						if ($contentTable)
 						{
 							// Separate the content values from the main element attributes
-							$content = array();
-							$content['elementId'] = $row['id'];
-							$content['locale'] = $criteria->locale;
+							$content = array(
+								'id'        => (isset($result['contentId']) ? $result['contentId'] : null),
+								'elementId' => $result['id'],
+								'locale'    => $criteria->locale,
+								'title'     => (isset($result['title']) ? $result['title'] : null)
+							);
 
-							if (isset($row['title']))
-							{
-								$content['title'] = $row['title'];
-								unset($row['title']);
-							}
-
-							// Did we actually get the requested locale back?
-							if ($row['locale'] == $criteria->locale)
-							{
-								$content['id'] = $row['contentId'];
-							}
-							else
-							{
-								$row['locale'] = $criteria->locale;
-							}
+							unset($result['title']);
 
 							if ($fieldColumns)
 							{
 								foreach ($fieldColumns as $column)
 								{
-									if (!empty($row[$column['column']]))
+									// Account for results where multiple fields have the same handle, but from different columns
+									// e.g. two Matrix block types that each have a field with the same handle
+
+									$colName = $column['column'];
+									$fieldHandle = $column['handle'];
+
+									if (!isset($content[$fieldHandle]) || (empty($content[$fieldHandle]) && !empty($result[$colName])))
 									{
-										$content[$column['handle']] = $row[$column['column']];
-										unset($row[$column['column']]);
+										$content[$fieldHandle] = $result[$colName];
 									}
+
+									unset($result[$colName]);
 								}
 							}
 						}
 
-						$element = $elementType->populateElementModel($row);
+						$result['locale'] = $criteria->locale;
+						$element = $elementType->populateElementModel($result);
 
-						if ($elementType->hasContent())
+						if ($contentTable)
 						{
 							$element->setContent($content);
 						}
@@ -263,6 +264,12 @@ class ElementsService extends BaseApplicationComponent
 						}
 
 						$lastElement = $element;
+
+						// Fire an 'onPopulateElement' event
+						$this->onPopulateElement(new Event($this, array(
+							'element' => $element,
+							'result'  => $originalResult
+						)));
 					}
 
 					$lastElement->setNext(false);
@@ -281,11 +288,11 @@ class ElementsService extends BaseApplicationComponent
 	 */
 	public function getTotalElements($criteria = null)
 	{
-		$subquery = $this->buildElementsQuery($criteria);
+		$query = $this->buildElementsQuery($criteria);
 
-		if ($subquery)
+		if ($query)
 		{
-			$elementIds = $this->_getElementIdsFromQuery($subquery);
+			$elementIds = $this->_getElementIdsFromQuery($query);
 
 			if ($criteria->search)
 			{
@@ -304,27 +311,38 @@ class ElementsService extends BaseApplicationComponent
 	 * Returns a DbCommand instance ready to search for elements based on a given element criteria.
 	 *
 	 * @param mixed &$criteria
-	 * @param array &$fieldColumns
+	 * @param null  &$contentTable
+	 * @param null  &$fieldColumns
 	 * @return DbCommand|false
 	 */
-	public function buildElementsQuery(&$criteria = null, &$fieldColumns = array())
+	public function buildElementsQuery(&$criteria = null, &$contentTable = null, &$fieldColumns = null)
 	{
 		if (!($criteria instanceof ElementCriteriaModel))
 		{
 			$criteria = $this->getCriteria('Entry', $criteria);
 		}
 
-		if (!$criteria->locale)
+		$elementType = $criteria->getElementType();
+
+		if (!$elementType->isLocalized())
 		{
-			// Default to the current app target locale
+			// The criteria *must* be set to the primary locale
+			$criteria->locale = craft()->i18n->getPrimarySiteLocaleId();
+		}
+		else if (!$criteria->locale)
+		{
+			// Default to the current app locale
 			$criteria->locale = craft()->language;
 		}
 
-		$elementType = $criteria->getElementType();
+		// Set up the query
 
 		$query = craft()->db->createCommand()
-			->select('elements.id, elements.type, elements.enabled, elements.archived, elements.dateCreated, elements.dateUpdated')
-			->from('elements elements');
+			->select('elements.id, elements.type, elements.enabled, elements.archived, elements.dateCreated, elements.dateUpdated, elements_i18n.slug, elements_i18n.uri, elements_i18n.enabled AS localeEnabled')
+			->from('elements elements')
+			->join('elements_i18n elements_i18n', 'elements_i18n.elementId = elements.id')
+			->where('elements_i18n.locale = :locale', array(':locale' => $criteria->locale))
+			->group('elements.id');
 
 		if ($elementType->hasContent())
 		{
@@ -332,7 +350,7 @@ class ElementsService extends BaseApplicationComponent
 
 			if ($contentTable)
 			{
-				$contentCols = 'content.id AS contentId, content.locale';
+				$contentCols = 'content.id AS contentId';
 
 				if ($elementType->hasTitles())
 				{
@@ -348,30 +366,11 @@ class ElementsService extends BaseApplicationComponent
 
 				$query->addSelect($contentCols);
 				$query->join($contentTable.' content', 'content.elementId = elements.id');
-				$this->_orderByRequestedLocale($query, 'content', $criteria->locale);
+				$query->andWhere('content.locale = :locale');
 			}
 		}
 
-		if ($elementType->isLocalized())
-		{
-			$query->addSelect('elements_i18n.uri');
-			$query->join('elements_i18n elements_i18n', 'elements_i18n.elementId = elements.id');
-
-			if (!$elementType->hasContent())
-			{
-				$query->addSelect('elements_i18n.locale');
-				$this->_orderByRequestedLocale($query, 'elements_i18n', $criteria->locale);
-			}
-			else
-			{
-				$query->andWhere('elements_i18n.locale = content.locale');
-			}
-
-			if ($criteria->uri !== null)
-			{
-				$query->andWhere(DbHelper::parseParam('elements_i18n.uri', $criteria->uri, $query->params));
-			}
-		}
+		// Basic element params
 
 		if ($criteria->id === false)
 		{
@@ -398,24 +397,21 @@ class ElementsService extends BaseApplicationComponent
 
 				foreach ($statuses as $status)
 				{
-					$status = mb_strtolower($status);
+					$status = StringHelper::toLowerCase($status);
 
-					switch ($status)
+					// Is this a supported status?
+					if (in_array($status, array_keys($elementType->getStatuses())))
 					{
-						case BaseElementModel::ENABLED:
+						if ($status == BaseElementModel::ENABLED)
 						{
 							$statusConditions[] = 'elements.enabled = 1';
-							break;
 						}
-
-						case BaseElementModel::DISABLED:
+						else if ($status == BaseElementModel::DISABLED)
 						{
 							$statusConditions[] = 'elements.enabled = 0';
 						}
-
-						default:
+						else
 						{
-							// Maybe the element type supports another status?
 							$elementStatusCondition = $elementType->getElementQueryStatusCondition($query, $status);
 
 							if ($elementStatusCondition)
@@ -457,6 +453,23 @@ class ElementsService extends BaseApplicationComponent
 			$query->andWhere(DbHelper::parseDateParam('elements.dateUpdated', $criteria->dateUpdated, $query->params));
 		}
 
+		// i18n params
+
+		if ($criteria->slug)
+		{
+			$query->andWhere(DbHelper::parseParam('elements_i18n.slug', $criteria->slug, $query->params));
+		}
+
+		if ($criteria->uri)
+		{
+			$query->andWhere(DbHelper::parseParam('elements_i18n.uri', $criteria->uri, $query->params));
+		}
+
+		if ($criteria->localeEnabled)
+		{
+			$query->andWhere('elements_i18n.enabled = 1');
+		}
+
 		// Relational params
 
 		// Convert the old childOf and parentOf params to the relatedTo param
@@ -464,21 +477,19 @@ class ElementsService extends BaseApplicationComponent
 		// parentOf(element) => relatedTo({ target: element })
 		if (!$criteria->relatedTo && ($criteria->childOf || $criteria->parentOf))
 		{
-			if ($criteria->childOf && $criteria->parentOf)
+			$relatedTo = array('and');
+
+			if ($criteria->childOf)
 			{
-				$criteria->relatedTo = array('and',
-					array('sourceElement' => $criteria->childOf, 'field' => $criteria->childField),
-					array('targetElement' => $criteria->parentOf, 'field' => $criteria->parentField)
-				);
+				$relatedTo[] = array('sourceElement' => $criteria->childOf, 'field' => $criteria->childField);
 			}
-			else if ($criteria->childOf)
+
+			if ($criteria->parentOf)
 			{
-				$criteria->relatedTo = array('sourceElement' => $criteria->childOf, 'field' => $criteria->childField);
+				$relatedTo[] = array('targetElement' => $criteria->parentOf, 'field' => $criteria->parentField);
 			}
-			else
-			{
-				$criteria->relatedTo = array('targetElement' => $criteria->parentOf, 'field' => $criteria->parentField);
-			}
+
+			$criteria->relatedTo = $relatedTo;
 		}
 
 		if ($criteria->relatedTo)
@@ -501,15 +512,15 @@ class ElementsService extends BaseApplicationComponent
 			}
 		}
 
+		// Give field types a chance to make changes
 
-		// Field conditions
 		foreach ($criteria->getSupportedFieldHandles() as $fieldHandle)
 		{
-			if ($criteria->$fieldHandle !== false)
-			{
-				$field = craft()->fields->getFieldByHandle($fieldHandle);
-				$fieldType = $field->getFieldType();
+			$field = craft()->fields->getFieldByHandle($fieldHandle);
+			$fieldType = $field->getFieldType();
 
+			if ($fieldType)
+			{
 				if ($fieldType->modifyElementsQuery($query, $criteria->$fieldHandle) === false)
 				{
 					return false;
@@ -518,16 +529,185 @@ class ElementsService extends BaseApplicationComponent
 		}
 
 		// Give the element type a chance to make changes
+
 		if ($elementType->modifyElementsQuery($query, $criteria) === false)
 		{
 			return false;
 		}
 
+		// Structure params
+
+		if ($query->isJoined('structureelements'))
+		{
+			$query->addSelect('structureelements.root, structureelements.lft, structureelements.rgt, structureelements.level');
+
+			if ($criteria->ancestorOf)
+			{
+				if (!$criteria->ancestorOf instanceof BaseElementModel)
+				{
+					$criteria->ancestorOf = craft()->elements->getElementById($criteria->ancestorOf, $elementType->getClassHandle());
+				}
+
+				if ($criteria->ancestorOf)
+				{
+					$query->andWhere(
+						array('and',
+							'structureelements.lft < :ancestorOf_lft',
+							'structureelements.rgt > :ancestorOf_rgt',
+							'structureelements.root = :ancestorOf_root'
+						),
+						array(
+							':ancestorOf_lft'  => $criteria->ancestorOf->lft,
+							':ancestorOf_rgt'  => $criteria->ancestorOf->rgt,
+							':ancestorOf_root' => $criteria->ancestorOf->root
+						)
+					);
+
+					if ($criteria->ancestorDist)
+					{
+						$query->andWhere('structureelements.level >= :ancestorOf_level',
+							array(':ancestorOf_level' => $criteria->ancestorOf->level - $criteria->ancestorDist)
+						);
+					}
+				}
+			}
+
+			if ($criteria->descendantOf)
+			{
+				if (!$criteria->descendantOf instanceof BaseElementModel)
+				{
+					$criteria->descendantOf = craft()->elements->getElementById($criteria->descendantOf, $elementType->getClassHandle());
+				}
+
+				if ($criteria->descendantOf)
+				{
+					$query->andWhere(
+						array('and',
+							'structureelements.lft > :descendantOf_lft',
+							'structureelements.rgt < :descendantOf_rgt',
+							'structureelements.root = :descendantOf_root'
+						),
+						array(
+							':descendantOf_lft'  => $criteria->descendantOf->lft,
+							':descendantOf_rgt'  => $criteria->descendantOf->rgt,
+							':descendantOf_root' => $criteria->descendantOf->root
+						)
+					);
+
+					if ($criteria->descendantDist)
+					{
+						$query->andWhere('structureelements.level <= :descendantOf_level',
+							array(':descendantOf_level' => $criteria->descendantOf->level + $criteria->descendantDist)
+						);
+					}
+				}
+			}
+
+			if ($criteria->siblingOf)
+			{
+				if (!$criteria->siblingOf instanceof BaseElementModel)
+				{
+					$criteria->siblingOf = craft()->elements->getElementById($criteria->siblingOf, $elementType->getClassHandle());
+				}
+
+				if ($criteria->siblingOf)
+				{
+					$query->andWhere(
+						array('and',
+							'structureelements.level = :siblingOf_level',
+							'structureelements.root = :siblingOf_root',
+							'structureelements.elementId != :siblingOf_elementId'
+						),
+						array(
+							':siblingOf_level'     => $criteria->siblingOf->level,
+							':siblingOf_root'      => $criteria->siblingOf->root,
+							':siblingOf_elementId' => $criteria->siblingOf->id
+						)
+					);
+
+					if ($criteria->siblingOf->level != 1)
+					{
+						$parent = $criteria->siblingOf->getParent();
+
+						if ($parent)
+						{
+							$query->andWhere(
+								array('and',
+									'structureelements.lft > :siblingOf_lft',
+									'structureelements.rgt < :siblingOf_rgt'
+								),
+								array(
+									':siblingOf_lft'  => $parent->lft,
+									':siblingOf_rgt'  => $parent->rgt
+								)
+							);
+						}
+						else
+						{
+							return false;
+						}
+					}
+				}
+			}
+
+			if ($criteria->prevSiblingOf)
+			{
+				if (!$criteria->prevSiblingOf instanceof BaseElementModel)
+				{
+					$criteria->prevSiblingOf = craft()->elements->getElementById($criteria->prevSiblingOf, $elementType->getClassHandle());
+				}
+
+				if ($criteria->prevSiblingOf)
+				{
+					$query->andWhere(
+						array('and',
+							'structureelements.level = :prevSiblingOf_level',
+							'structureelements.rgt = :prevSiblingOf_rgt',
+							'structureelements.root = :prevSiblingOf_root'
+						),
+						array(
+							':prevSiblingOf_level' => $criteria->prevSiblingOf->level,
+							':prevSiblingOf_rgt'   => $criteria->prevSiblingOf->lft - 1,
+							':prevSiblingOf_root'  => $criteria->prevSiblingOf->root
+						)
+					);
+				}
+			}
+
+			if ($criteria->nextSiblingOf)
+			{
+				if (!$criteria->nextSiblingOf instanceof BaseElementModel)
+				{
+					$criteria->nextSiblingOf = craft()->elements->getElementById($criteria->nextSiblingOf, $elementType->getClassHandle());
+				}
+
+				if ($criteria->nextSiblingOf)
+				{
+					$query->andWhere(
+						array('and',
+							'structureelements.level = :nextSiblingOf_level',
+							'structureelements.lft = :nextSiblingOf_lft',
+							'structureelements.root = :nextSiblingOf_root'
+						),
+						array(
+							':nextSiblingOf_level' => $criteria->nextSiblingOf->level,
+							':nextSiblingOf_lft'   => $criteria->nextSiblingOf->rgt + 1,
+							':nextSiblingOf_root'  => $criteria->nextSiblingOf->root
+						)
+					);
+				}
+			}
+
+			if ($criteria->level || $criteria->depth)
+			{
+				// TODO: 'depth' is deprecated; use 'level' instead.
+				$level = ($criteria->level ? $criteria->level : $criteria->depth);
+				$query->andWhere(DbHelper::parseParam('structureelements.level', $level, $query->params));
+			}
+		}
+
 		return $query;
 	}
-
-	// Element helper functions
-	// ========================
 
 	/**
 	 * Returns an element's URI for a given locale.
@@ -546,44 +726,647 @@ class ElementsService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Returns the localization record for a given element and locale.
+	 * Returns the locales that a given element is enabled in.
 	 *
 	 * @param int $elementId
-	 * @param string $locale
+	 * @return array
 	 */
-	public function getElementLocaleRecord($elementId, $localeId)
+	public function getEnabledLocalesForElement($elementId)
 	{
-		return ElementLocaleRecord::model()->findByAttributes(array(
-			'elementId' => $elementId,
-			'locale'  => $localeId
+		return craft()->db->createCommand()
+			->select('locale')
+			->from('elements_i18n')
+			->where(array('elementId' => $elementId, 'enabled' => 1))
+			->queryColumn();
+	}
+
+	// Saving Elements
+	// ===============
+
+	/**
+	 * Saves an element.
+	 *
+	 * @param BaseElementModel $element         The element that is being saved
+	 * @param bool|null        $validateContent Whether the element's content should be validated. If left 'null', it will depend on whether the element is enabled or not.
+	 * @throws Exception
+	 * @throws \Exception
+	 * @return bool
+	 */
+	public function saveElement(BaseElementModel $element, $validateContent = null)
+	{
+		$elementType = $this->getElementType($element->getElementType());
+
+		$isNewElement = !$element->id;
+
+		// Validate the content first
+		if ($elementType->hasContent())
+		{
+			if ($validateContent === null)
+			{
+				$validateContent = (bool) $element->enabled;
+			}
+
+			if ($validateContent && !craft()->content->validateContent($element))
+			{
+				$element->addErrors($element->getContent()->getErrors());
+				return false;
+			}
+			else
+			{
+				// Make sure there's a title
+				if ($elementType->hasTitles())
+				{
+					$fields = array('title');
+					$content = $element->getContent();
+					$content->setRequiredFields($fields);
+
+					if (!$content->validate($fields) && $content->hasErrors('title'))
+					{
+						// Just set *something* on it
+						if ($isNewElement)
+						{
+							$content->title = 'New '.$element->getClassHandle();
+						}
+						else
+						{
+							$content->title = $element->getClassHandle().' '.$element->id;
+						}
+					}
+				}
+			}
+		}
+
+		// Get the element record
+		if (!$isNewElement)
+		{
+			$elementRecord = ElementRecord::model()->findByAttributes(array(
+				'id'   => $element->id,
+				'type' => $element->getElementType()
+			));
+
+			if (!$elementRecord)
+			{
+				throw new Exception(Craft::t('No element exists with the ID “{id}”', array('id' => $element->id)));
+			}
+		}
+		else
+		{
+			$elementRecord = new ElementRecord();
+			$elementRecord->type = $element->getElementType();
+		}
+
+		// Set the attributes
+		$elementRecord->enabled = (bool) $element->enabled;
+		$elementRecord->archived = (bool) $element->archived;
+
+		$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
+		try
+		{
+			// Save the element record first
+			$success = $elementRecord->save(false);
+
+			if ($success)
+			{
+				if ($isNewElement)
+				{
+					// Save the element id on the element model, in case {id} is in the URL format
+					$element->id = $elementRecord->id;
+
+					if ($elementType->hasContent())
+					{
+						$element->getContent()->elementId = $element->id;
+					}
+				}
+
+				// Save the content
+				if ($elementType->hasContent())
+				{
+					craft()->content->saveContent($element, false, (bool) $element->id);
+				}
+
+				// Update the search index
+				craft()->search->indexElementAttributes($element);
+
+				// Update the locale records and content
+
+				// We're saving all of the element's locales here to ensure that they all exist
+				// and to update the URI in the event that the URL format includes some value that just changed
+
+				$localeRecords = array();
+
+				if (!$isNewElement)
+				{
+					$existingLocaleRecords = ElementLocaleRecord::model()->findAllByAttributes(array(
+						'elementId' => $element->id
+					));
+
+					foreach ($existingLocaleRecords as $record)
+					{
+						$localeRecords[$record->locale] = $record;
+					}
+				}
+
+				$mainLocaleId = $element->locale;
+				$mainSlug     = $element->slug;
+				$mainUri      = $element->uri;
+
+				if ($elementType->hasContent())
+				{
+					$mainContent = $element->getContent();
+				}
+
+				$locales = $element->getLocales();
+				$localeIds = array();
+
+				if (!$locales)
+				{
+					throw new Exception('All elements must have at least one locale associated with them.');
+				}
+
+				foreach ($locales as $localeId => $localeInfo)
+				{
+					if (is_numeric($localeId) && is_string($localeInfo))
+					{
+						$localeId = $localeInfo;
+						$localeInfo = array();
+					}
+
+					$localeIds[] = $localeId;
+
+					if (!isset($localeInfo['enabledByDefault']))
+					{
+						$localeInfo['enabledByDefault'] = true;
+					}
+
+					if (isset($localeRecords[$localeId]))
+					{
+						$localeRecord = $localeRecords[$localeId];
+					}
+					else
+					{
+						$localeRecord = new ElementLocaleRecord();
+
+						$localeRecord->elementId = $element->id;
+						$localeRecord->locale    = $localeId;
+						$localeRecord->enabled   = $localeInfo['enabledByDefault'];
+					}
+
+					// Set the locale and its content on the element
+					$element->locale = $localeId;
+
+					if ($localeRecord->id && $localeRecord->locale != $mainLocaleId)
+					{
+						// Keep the original slug
+						$element->slug = $localeRecord->slug;
+					}
+					else
+					{
+						$element->slug = $mainSlug;
+					}
+
+					if ($elementType->hasContent())
+					{
+						if ($localeId == $mainLocaleId)
+						{
+							$content = $mainContent;
+						}
+						else
+						{
+							$content = null;
+
+							if (!$isNewElement)
+							{
+								// Do we already have a content row for this locale?
+								$content = craft()->content->getContent($element);
+							}
+
+							if (!$content)
+							{
+								$content = craft()->content->createContent($element);
+								$content->setAttributes($mainContent->getAttributes());
+								$content->id = null;
+								$content->locale = $localeId;
+							}
+						}
+
+						$element->setContent($content);
+
+						if (!$content->id)
+						{
+							craft()->content->saveContent($element, false, false);
+						}
+					}
+
+					// Set a valid/unique slug and URI
+					ElementHelper::setValidSlug($element);
+					ElementHelper::setUniqueUri($element);
+
+					$localeRecord->slug = $element->slug;
+					$localeRecord->uri  = $element->uri;
+
+					if ($localeId == $mainLocaleId)
+					{
+						$localeRecord->enabled = (bool) $element->localeEnabled;
+					}
+
+					$success = $localeRecord->save();
+
+					if (!$success)
+					{
+						// Pass any validation errors on to the element
+						$element->addErrors($localeRecord->getErrors());
+
+						// Don't bother with any of the other locales
+						break;
+					}
+
+					if ($localeId == $mainLocaleId)
+					{
+						// Remember the saved slug and URI
+						$mainSlug = $element->slug;
+						$mainUri  = $element->uri;
+					}
+				}
+
+				// Bring everything back to this locale
+				$element->locale = $mainLocaleId;
+				$element->slug   = $mainSlug;
+				$element->uri    = $mainUri;
+
+				if ($elementType->hasContent())
+				{
+					$element->setContent($mainContent);
+				}
+
+				if ($success)
+				{
+					if (!$isNewElement)
+					{
+						// Delete the rows that don't need to be there anymore
+
+						craft()->db->createCommand()->delete('elements_i18n', array('and',
+							'elementId = :elementId',
+							array('not in', 'locale', $localeIds)
+						), array(
+							':elementId' => $element->id
+						));
+
+						if ($elementType->hasContent())
+						{
+							craft()->db->createCommand()->delete($element->getContentTable(), array('and',
+								'elementId = :elementId',
+								array('not in', 'locale', $localeIds)
+							), array(
+								':elementId' => $element->id
+							));
+						}
+					}
+
+					// Call the field types' onAfterElementSave() methods
+					$fieldLayout = $element->getFieldLayout();
+
+					if ($fieldLayout)
+					{
+						foreach ($fieldLayout->getFields() as $fieldLayoutField)
+						{
+							$field = $fieldLayoutField->getField();
+
+							if ($field)
+							{
+								$fieldType = $field->getFieldType();
+
+								if ($fieldType)
+								{
+									$fieldType->element = $element;
+									$fieldType->onAfterElementSave();
+								}
+							}
+						}
+					}
+
+					// Finally, delete any caches involving this element
+					// (Even do this for new elements, since they might pop up in a cached criteria.)
+					craft()->templateCache->deleteCachesByElement($element);
+				}
+			}
+
+			if ($transaction !== null)
+			{
+				if ($success)
+				{
+					$transaction->commit();
+				}
+				else
+				{
+					$transaction->rollback();
+				}
+			}
+
+			if (!$success && $isNewElement)
+			{
+				$element->id = null;
+
+				if ($elementType->hasContent())
+				{
+					$element->getContent()->id = null;
+					$element->getContent()->elementId = null;
+				}
+			}
+		}
+		catch (\Exception $e)
+		{
+			if ($transaction !== null)
+			{
+				$transaction->rollback();
+			}
+
+			throw $e;
+		}
+
+		return $success;
+	}
+
+	/**
+	 * Updates an element's slug and URI, along with any descendants.
+	 *
+	 * @param BaseElementModel $element
+	 * @param bool $updateOtherLocales
+	 * @param bool $updateDescendants
+	 */
+	public function updateElementSlugAndUri(BaseElementModel $element, $updateOtherLocales = true, $updateDescendants = true)
+	{
+		ElementHelper::setUniqueUri($element);
+
+		craft()->db->createCommand()->update('elements_i18n', array(
+			'slug' => $element->slug,
+			'uri'  => $element->uri
+		), array(
+			'elementId' => $element->id,
+			'locale'    => $element->locale
 		));
+
+		// Delete any caches involving this element
+		craft()->templateCache->deleteCachesByElement($element);
+
+		if ($updateOtherLocales)
+		{
+			$this->updateElementSlugAndUriInOtherLocales($element);
+		}
+
+		if ($updateDescendants)
+		{
+			$this->updateDescendantSlugsAndUris($element);
+		}
+	}
+
+	/**
+	 * Updates an element's slug and URI, for any locales besides the given one.
+	 *
+	 * @param BaseElementModel $element
+	 */
+	public function updateElementSlugAndUriInOtherLocales(BaseElementModel $element)
+	{
+		foreach (craft()->i18n->getSiteLocaleIds() as $localeId)
+		{
+			if ($localeId == $element->locale)
+			{
+				continue;
+			}
+
+			$elementInOtherLocale = $this->getElementById($element->id, $element->getElementType(), $localeId);
+
+			if ($elementInOtherLocale)
+			{
+				$this->updateElementSlugAndUri($elementInOtherLocale, false, false);
+			}
+		}
+	}
+
+	/**
+	 * Updates an element's descendants' slugs and URIs.
+	 *
+	 * @param BaseElementModel $element
+	 */
+	public function updateDescendantSlugsAndUris(BaseElementModel $element)
+	{
+		$criteria = $this->getCriteria($element->getElementType());
+		$criteria->descendantOf = $element;
+		$criteria->descendantDist = 1;
+		$criteria->status = null;
+		$criteria->localeEnabled = null;
+		$children = $criteria->find();
+
+		foreach ($children as $child)
+		{
+			$this->updateElementSlugAndUri($child);
+		}
+	}
+
+	/**
+	 * Merges two elements together.
+	 *
+	 * @param int $mergedElementId
+	 * @param int $prevailingElementId
+	 * @return bool
+	 */
+	public function mergeElementsByIds($mergedElementId, $prevailingElementId)
+	{
+		$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
+		try
+		{
+			// Update any relations that point to the merged element
+			$relations = craft()->db->createCommand()
+				->select('id, fieldId, sourceId, sourceLocale')
+				->from('relations')
+				->where(array('targetId' => $mergedElementId))
+				->queryAll();
+
+			foreach ($relations as $relation)
+			{
+				// Make sure the persisting element isn't already selected in the same field
+				$persistingElementIsRelatedToo = (bool) craft()->db->createCommand()
+					->from('relations')
+					->where(array(
+						'fieldId'      => $relation['fieldId'],
+						'sourceId'     => $relation['sourceId'],
+						'sourceLocale' => $relation['sourceLocale'],
+						'targetId'     => $prevailingElementId
+					))
+					->count('id');
+
+				if (!$persistingElementIsRelatedToo)
+				{
+					craft()->db->createCommand()->update('relations', array(
+						'targetId' => $prevailingElementId
+					), array(
+						'id' => $relation['id']
+					));
+				}
+			}
+
+			// Update any structures that the merged element is in
+			$structureElements = craft()->db->createCommand()
+				->select('id, structureId')
+				->from('structureelements')
+				->where(array('elementId' => $mergedElementId))
+				->queryAll();
+
+			foreach ($structureElements as $structureElement)
+			{
+				// Make sure the persisting element isn't already a part of that structure
+				$persistingElementIsInStructureToo = (bool) craft()->db->createCommand()
+					->from('structureElements')
+					->where(array(
+						'structureId' => $structureElement['structureId'],
+						'elementId' => $prevailingElementId
+					))
+					->count('id');
+
+				if (!$persistingElementIsInStructureToo)
+				{
+					craft()->db->createCommand()->update('relations', array(
+						'elementId' => $prevailingElementId
+					), array(
+						'id' => $structureElement['id']
+					));
+				}
+			}
+
+			// Update any reference tags
+			$elementType = $this->getElementTypeById($prevailingElementId);
+
+			if ($elementType)
+			{
+				$refTagPrefix = '{'.lcfirst($elementType).':';
+
+				craft()->tasks->createTask('FindAndReplace', Craft::t('Updating element references'), array(
+					'find'    => $refTagPrefix.$mergedElementId.':',
+					'replace' => $refTagPrefix.$prevailingElementId.':',
+				));
+
+				craft()->tasks->createTask('FindAndReplace', Craft::t('Updating element references'), array(
+					'find'    => $refTagPrefix.$mergedElementId.'}',
+					'replace' => $refTagPrefix.$prevailingElementId.'}',
+				));
+			}
+
+			// Fire an 'onMergeElements' event
+			$this->onMergeElements(new Event($this, array(
+				'mergedElementId'     => $mergedElementId,
+				'prevailingElementId' => $prevailingElementId
+			)));
+
+			// Now delete the merged element
+			$success = $this->deleteElementById($mergedElementId);
+
+			if ($transaction !== null)
+			{
+				$transaction->commit();
+			}
+
+			return $success;
+		}
+		catch (\Exception $e)
+		{
+			if ($transaction !== null)
+			{
+				$transaction->rollback();
+			}
+
+			throw $e;
+		}
 	}
 
 	/**
 	 * Deletes an element(s) by its ID(s).
 	 *
-	 * @param int|array $elementId
+	 * @param int|array $elementIds
 	 * @return bool
 	 */
-	public function deleteElementById($elementId)
+	public function deleteElementById($elementIds)
 	{
-		if (!$elementId)
+		if (!$elementIds)
 		{
 			return false;
 		}
 
-		if (is_array($elementId))
+		if (!is_array($elementIds))
 		{
-			$condition = array('in', 'id', $elementId);
-		}
-		else
-		{
-			$condition = array('id' => $elementId);
+			$elementIds = array($elementIds);
 		}
 
-		$affectedRows = craft()->db->createCommand()->delete('elements', $condition);
+		$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
+		try
+		{
+			// First delete any structure nodes with these elements, so NestedSetBehavior can do its thing.
+			// We need to go one-by-one in case one of theme deletes the record of another in the process.
+			foreach ($elementIds as $elementId)
+			{
+				$records = StructureElementRecord::model()->findAllByAttributes(array(
+					'elementId' => $elementId
+				));
 
-		return (bool) $affectedRows;
+				foreach ($records as $record)
+				{
+					$record->deleteNode();
+				}
+
+				// Also delete any caches involving this element
+				craft()->templateCache->deleteCachesByElementId($elementId);
+			}
+
+			// Now delete the rows in the elements table
+			if (count($elementIds) == 1)
+			{
+				$condition = array('id' => $elementIds[0]);
+			}
+			else
+			{
+				$condition = array('in', 'id', $elementIds);
+			}
+
+			$affectedRows = craft()->db->createCommand()->delete('elements', $condition);
+
+			if ($transaction !== null)
+			{
+				$transaction->commit();
+			}
+
+			return (bool) $affectedRows;
+		}
+		catch (\Exception $e)
+		{
+			if ($transaction !== null)
+			{
+				$transaction->rollback();
+			}
+
+			throw $e;
+		}
+	}
+
+	/**
+	 * Deletes elements by a given type.
+	 *
+	 * @param string $type
+	 * @return bool
+	 */
+	public function deleteElementsByType($type)
+	{
+		// Get the IDs and let deleteElementById() take care of the actual deletion
+		$elementIds = craft()->db->createCommand()
+			->select('id')
+			->from('elements')
+			->where('type = :type', array(':type' => $type))
+			->queryColumn();
+
+		if ($elementIds)
+		{
+			$this->deleteElementById($elementIds);
+
+			// Delete the template caches
+			craft()->templateCache->deleteCachesByElementType($type);
+		}
 	}
 
 	// Element types
@@ -742,31 +1525,28 @@ class ElementsService extends BaseApplicationComponent
 		return $str;
 	}
 
-	// Private functions
-	// =================
+	/**
+	 * Fires an 'onPopulateElement' event.
+	 *
+	 * @param Event $event
+	 */
+	public function onPopulateElement(Event $event)
+	{
+		$this->raiseEvent('onPopulateElement', $event);
+	}
 
 	/**
-	 * Adds ORDER BY's to the passed-in query to sort the requested locale up to the top.
+	 * Fires an 'onMergeElements' event.
 	 *
-	 * @access private
-	 * @param DbCommand $query
-	 * @param string $table
-	 * @param string|null $localeId
+	 * @param Event $event
 	 */
-	private function _orderByRequestedLocale(DbCommand $query, $table, $localeId)
+	public function onMergeElements(Event $event)
 	{
-		$localeIds = craft()->i18n->getSiteLocaleIds();
-
-		if (count($localeIds) > 1)
-		{
-			// Move the requested locale to the first position
-			array_unshift($localeIds, $localeId);
-			$localeIds = array_unique($localeIds);
-
-			// Order the results by locale
-			$query->order(craft()->db->getSchema()->orderByColumnValues($table.'.locale', $localeIds));
-		}
+		$this->raiseEvent('onMergeElements', $event);
 	}
+
+	// Private functions
+	// =================
 
 	/**
 	 * Returns the unique element IDs that match a given element query.

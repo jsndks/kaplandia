@@ -29,12 +29,17 @@ interface IElementType extends IComponentType
 	/**
 	 * @return bool
 	 */
-	public function hasStatuses();
+	public function isLocalized();
 
 	/**
 	 * @return bool
 	 */
-	public function isLocalized();
+	public function hasStatuses();
+
+	/**
+	 * @return array|null
+	 */
+	public function getStatuses();
 
 	/**
 	 * @param string|null $context
@@ -43,9 +48,26 @@ interface IElementType extends IComponentType
 	public function getSources($context = null);
 
 	/**
+	 * @param string $key
+	 * @param string|null $context
+	 * @return array|null
+	 */
+	public function getSource($key, $context = null);
+
+	/**
 	 * @return array
 	 */
 	public function defineSearchableAttributes();
+
+	/**
+	 * @param ElementCriteriaModel $criteria
+	 * @param array $disabledElementIds
+	 * @param array $viewState
+	 * @param string|null $sourceKey
+	 * @param string|null $context
+	 * @return string
+	 */
+	public function getIndexHtml($criteria, $disabledElementIds, $viewState, $sourceKey, $context);
 
 	/**
 	 * @return array
@@ -97,8 +119,27 @@ interface IElementType extends IComponentType
 	public function populateElementModel($row);
 
 	/**
+	 * @param BaseElementModel $element
+	 * @return string
+	 */
+	public function getEditorHtml(BaseElementModel $element);
+
+	/**
+	 * @param BaseElementModel $element
+	 * @param array $params
+	 * @return bool
+	 */
+	public function saveElement(BaseElementModel $element, $params);
+
+	/**
 	 * @param BaseElementModel
 	 * @return mixed
 	 */
 	public function routeRequestForMatchedElement(BaseElementModel $element);
+
+	/**
+	 * @param BaseElementModel $element
+	 * @param int $structureId
+	 */
+	public function onAfterMoveElementInStructure(BaseElementModel $element, $structureId);
 }

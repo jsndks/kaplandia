@@ -41,13 +41,7 @@ class HttpRequestVariable
 	 */
 	public function isLivePreview()
 	{
-		$actionSegments = craft()->request->getActionSegments();
-
-		return (
-			count($actionSegments) == 2 &&
-			$actionSegments[0] == 'entries' &&
-			$actionSegments[1] == 'previewEntry'
-		);
+		return craft()->request->isLivePreview();
 	}
 
 	/**
@@ -210,5 +204,15 @@ class HttpRequestVariable
 	public function isMobileBrowser($detectTablets = false)
 	{
 		return craft()->request->isMobileBrowser($detectTablets);
+	}
+
+	/**
+	 * Returns the page number if this is a paginated request.
+	 *
+	 * @return int
+	 */
+	public function getPageNum()
+	{
+		return craft()->request->getPageNum();
 	}
 }

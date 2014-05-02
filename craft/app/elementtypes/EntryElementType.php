@@ -47,6 +47,16 @@ class EntryElementType extends BaseElementType
 	}
 
 	/**
+	 * Returns whether this element type stores data on a per-locale basis.
+	 *
+	 * @return bool
+	 */
+	public function isLocalized()
+	{
+		return true;
+	}
+
+	/**
 	 * Returns whether this element type can have statuses.
 	 *
 	 * @return bool
@@ -57,13 +67,18 @@ class EntryElementType extends BaseElementType
 	}
 
 	/**
-	 * Returns whether this element type stores data on a per-locale basis.
+	 * Returns all of the possible statuses that elements of this type may have.
 	 *
-	 * @return bool
+	 * @return array|null
 	 */
-	public function isLocalized()
+	public function getStatuses()
 	{
-		return true;
+		return array(
+			EntryModel::LIVE => Craft::t('Live'),
+			EntryModel::PENDING => Craft::t('Pending'),
+			EntryModel::EXPIRED => Craft::t('Expired'),
+			BaseElementModel::DISABLED => Craft::t('Disabled')
+		);
 	}
 
 	/**
@@ -132,18 +147,14 @@ class EntryElementType extends BaseElementType
 					$key = 'section:'.$section->id;
 
 					$sources[$key] = array(
-						'label'        => $section->name,
-						'hasStructure' => ($type == SectionType::Structure),
-						'data'         => array('type' => $type, 'handle' => $section->handle),
-						'criteria'     => array('sectionId' => $section->id)
+						'label'    => Craft::t($section->name),
+						'data'     => array('type' => $type, 'handle' => $section->handle),
+						'criteria' => array('sectionId' => $section->id)
 					);
 
 					if ($type == SectionType::Structure)
 					{
-						$sources[$key]['hasStructure'] = true;
-						$sources[$key]['sortable'] = craft()->userSession->checkPermission('publishEntries:'.$section->id);
-						$sources[$key]['moveAction'] = 'entries/moveEntry';
-						$sources[$key]['maxDepth'] = $section->maxDepth;
+						$sources[$key]['structureId'] = $section->structureId;
 						$sources[$key]['newChildUrl'] = 'entries/'.$section->handle.'/new';
 					}
 				}
@@ -151,16 +162,6 @@ class EntryElementType extends BaseElementType
 		}
 
 		return $sources;
-	}
-
-	/**
-	 * Defines which model attributes should be searchable.
-	 *
-	 * @return array
-	 */
-	public function defineSearchableAttributes()
-	{
-		return array('slug');
 	}
 
 	/**
@@ -242,23 +243,15 @@ class EntryElementType extends BaseElementType
 	{
 		return array(
 			'after'           => AttributeType::Mixed,
-			'ancestorDist'    => AttributeType::Number,
-			'ancestorOf'      => AttributeType::Mixed,
 			'authorGroup'     => AttributeType::String,
 			'authorGroupId'   => AttributeType::Number,
 			'authorId'        => AttributeType::Number,
 			'before'          => AttributeType::Mixed,
-			'depth'           => AttributeType::Number,
-			'descendantDist'  => AttributeType::Number,
-			'descendantOf'    => AttributeType::Mixed,
 			'editable'        => AttributeType::Bool,
-			'nextSiblingOf'   => AttributeType::Mixed,
 			'order'           => array(AttributeType::String, 'default' => 'lft, postDate desc'),
 			'postDate'        => AttributeType::Mixed,
-			'prevSiblingOf'   => AttributeType::Mixed,
 			'section'         => AttributeType::Mixed,
 			'sectionId'       => AttributeType::Number,
-			'slug'            => AttributeType::String,
 			'status'          => array(AttributeType::String, 'default' => EntryModel::LIVE),
 			'type'            => AttributeType::Mixed,
 		);
@@ -281,6 +274,7 @@ class EntryElementType extends BaseElementType
 			{
 				return array('and',
 					'elements.enabled = 1',
+					'elements_i18n.enabled = 1',
 					"entries.postDate <= '{$currentTimeDb}'",
 					array('or', 'entries.expiryDate is null', "entries.expiryDate > '{$currentTimeDb}'")
 				);
@@ -290,6 +284,7 @@ class EntryElementType extends BaseElementType
 			{
 				return array('and',
 					'elements.enabled = 1',
+					'elements_i18n.enabled = 1',
 					"entries.postDate > '{$currentTimeDb}'"
 				);
 			}
@@ -298,6 +293,7 @@ class EntryElementType extends BaseElementType
 			{
 				return array('and',
 					'elements.enabled = 1',
+					'elements_i18n.enabled = 1',
 					'entries.expiryDate is not null',
 					"entries.expiryDate <= '{$currentTimeDb}'"
 				);
@@ -315,13 +311,11 @@ class EntryElementType extends BaseElementType
 	public function modifyElementsQuery(DbCommand $query, ElementCriteriaModel $criteria)
 	{
 		$query
-			->addSelect('entries.sectionId, entries.typeId, entries.authorId, entries.root, entries.lft, entries.rgt, entries.depth, entries.postDate, entries.expiryDate, entries_i18n.slug')
+			->addSelect('entries.sectionId, entries.typeId, entries.authorId, entries.postDate, entries.expiryDate')
 			->join('entries entries', 'entries.id = elements.id')
-			->join('entries_i18n entries_i18n', 'entries_i18n.entryId = elements.id')
-			->andWhere(array('or', 'entries.lft IS NULL', 'entries.lft != 1'))
-			->andWhere('entries_i18n.locale = elements_i18n.locale');
-
-		$joinedSections = false;
+			->join('sections sections', 'sections.id = entries.sectionId')
+			->leftJoin('structures structures', 'structures.id = sections.structureId')
+			->leftJoin('structureelements structureelements', array('and', 'structureelements.structureId = structures.id', 'structureelements.elementId = entries.id'));
 
 		if ($criteria->ref)
 		{
@@ -336,19 +330,13 @@ class EntryElementType extends BaseElementType
 				{
 					if (count($parts) == 1)
 					{
-						$conditionals[] = DbHelper::parseParam('entries_i18n.slug', $parts[0], $query->params);
+						$conditionals[] = DbHelper::parseParam('elements_i18n.slug', $parts[0], $query->params);
 					}
 					else
 					{
-						if (!$joinedSections)
-						{
-							$query->join('sections sections', 'entries.sectionId = sections.id');
-							$joinedSections = true;
-						}
-
 						$conditionals[] = array('and',
 							DbHelper::parseParam('sections.handle', $parts[0], $query->params),
-							DbHelper::parseParam('entries_i18n.slug', $parts[1], $query->params)
+							DbHelper::parseParam('elements_i18n.slug', $parts[1], $query->params)
 						);
 					}
 				}
@@ -412,11 +400,6 @@ class EntryElementType extends BaseElementType
 			$query->andWhere(DbHelper::parseParam('entries.typeId', $typeIds, $query->params));
 		}
 
-		if ($criteria->slug)
-		{
-			$query->andWhere(DbHelper::parseParam('entries_i18n.slug', $criteria->slug, $query->params));
-		}
-
 		if ($criteria->postDate)
 		{
 			$query->andWhere(DbHelper::parseDateParam('entries.postDate', $criteria->postDate, $query->params));
@@ -463,141 +446,25 @@ class EntryElementType extends BaseElementType
 			}
 		}
 
+		if ($criteria->section)
+		{
+			if ($criteria->section instanceof SectionModel)
+			{
+				$criteria->sectionId = $criteria->section->id;
+				$criteria->section = null;
+			}
+			else
+			{
+				$query->andWhere(DbHelper::parseParam('sections.handle', $criteria->section, $query->params));
+			}
+		}
+
 		if ($criteria->sectionId)
 		{
 			$query->andWhere(DbHelper::parseParam('entries.sectionId', $criteria->sectionId, $query->params));
 		}
 
-		if ($criteria->section)
-		{
-			if (!$joinedSections)
-			{
-				$query->join('sections sections', 'entries.sectionId = sections.id');
-				$joinedSections = true;
-			}
-
-			$query->andWhere(DbHelper::parseParam('sections.handle', $criteria->section, $query->params));
-		}
-
-		if (craft()->hasPackage(CraftPackage::PublishPro))
-		{
-			if ($criteria->ancestorOf)
-			{
-				if (!$criteria->ancestorOf instanceof EntryModel)
-				{
-					$criteria->ancestorOf = craft()->entries->getEntryById($criteria->ancestorOf);
-				}
-
-				if ($criteria->ancestorOf)
-				{
-					$query->andWhere(
-						array('and',
-							'entries.lft < :ancestorOf_lft',
-							'entries.rgt > :ancestorOf_rgt',
-							'entries.sectionId = :ancestorOf_sectionId'
-						),
-						array(
-							':ancestorOf_lft'       => $criteria->ancestorOf->lft,
-							':ancestorOf_rgt'       => $criteria->ancestorOf->rgt,
-							':ancestorOf_sectionId' => $criteria->ancestorOf->sectionId
-						)
-					);
-
-					if ($criteria->ancestorDist)
-					{
-						$query->andWhere('entries.depth >= :depth',
-							array(':depth' => $criteria->ancestorOf->depth - $criteria->ancestorDist)
-						);
-					}
-				}
-			}
-
-			if ($criteria->descendantOf)
-			{
-				if (!$criteria->descendantOf instanceof EntryModel)
-				{
-					$criteria->descendantOf = craft()->entries->getEntryById($criteria->descendantOf);
-				}
-
-				if ($criteria->descendantOf)
-				{
-					$query->andWhere(
-						array('and',
-							'entries.lft > :descendantOf_lft',
-							'entries.rgt < :descendantOf_rgt',
-							'entries.sectionId = :descendantOf_sectionId'
-						),
-						array(
-							':descendantOf_lft'       => $criteria->descendantOf->lft,
-							':descendantOf_rgt'       => $criteria->descendantOf->rgt,
-							':descendantOf_sectionId' => $criteria->descendantOf->sectionId
-						)
-					);
-
-					if ($criteria->descendantDist)
-					{
-						$query->andWhere('entries.depth <= :depth',
-							array(':depth' => $criteria->descendantOf->depth + $criteria->descendantDist)
-						);
-					}
-				}
-			}
-
-			if ($criteria->prevSiblingOf)
-			{
-				if (!$criteria->prevSiblingOf instanceof EntryModel)
-				{
-					$criteria->prevSiblingOf = craft()->entries->getEntryById($criteria->prevSiblingOf);
-				}
-
-				if ($criteria->prevSiblingOf)
-				{
-					$query->andWhere(
-						array('and',
-							'entries.depth = :prevSiblingOf_depth',
-							'entries.rgt = :prevSiblingOf_rgt',
-							'entries.sectionId = :prevSiblingOf_sectionId'
-						),
-						array(
-							':prevSiblingOf_depth'     => $criteria->prevSiblingOf->depth,
-							':prevSiblingOf_rgt'       => $criteria->prevSiblingOf->lft - 1,
-							':prevSiblingOf_sectionId' => $criteria->prevSiblingOf->sectionId
-						)
-					);
-				}
-			}
-
-			if ($criteria->nextSiblingOf)
-			{
-				if (!$criteria->nextSiblingOf instanceof EntryModel)
-				{
-					$criteria->nextSiblingOf = craft()->entries->getEntryById($criteria->nextSiblingOf);
-				}
-
-				if ($criteria->nextSiblingOf)
-				{
-					$query->andWhere(
-						array('and',
-							'entries.depth = :nextSiblingOf_depth',
-							'entries.lft = :nextSiblingOf_lft',
-							'entries.sectionId = :nextSiblingOf_sectionId'
-						),
-						array(
-							':nextSiblingOf_depth'     => $criteria->nextSiblingOf->depth,
-							':nextSiblingOf_lft'       => $criteria->nextSiblingOf->rgt + 1,
-							':nextSiblingOf_sectionId' => $criteria->nextSiblingOf->sectionId
-						)
-					);
-				}
-			}
-
-			if ($criteria->depth)
-			{
-				$query->andWhere(DbHelper::parseParam('entries.depth', $criteria->depth, $query->params));
-			}
-		}
-
-		if (craft()->hasPackage(CraftPackage::Users))
+		if (craft()->getEdition() >= Craft::Client)
 		{
 			if ($criteria->authorId)
 			{
@@ -634,6 +501,30 @@ class EntryElementType extends BaseElementType
 	}
 
 	/**
+	 * Returns the HTML for an editor HUD for the given element.
+	 *
+	 * @param BaseElementModel $element
+	 * @return string
+	 */
+	public function getEditorHtml(BaseElementModel $element)
+	{
+		if ($element->getType()->hasTitleField)
+		{
+			$html = craft()->templates->render('entries/_titlefield', array(
+				'entry' => $element
+			));
+		}
+		else
+		{
+			$html = '';
+		}
+
+		$html .= parent::getEditorHtml($element);
+
+		return $html;
+	}
+
+	/**
 	 * Routes the request when the URI matches an element.
 	 *
 	 * @param BaseElementModel
@@ -664,5 +555,22 @@ class EntryElementType extends BaseElementType
 		}
 
 		return false;
+	}
+
+	/**
+	 * Performs actions after an element has been moved within a structure.
+	 *
+	 * @param BaseElementModel $element
+	 * @param int $structureId
+	 */
+	public function onAfterMoveElementInStructure(BaseElementModel $element, $structureId)
+	{
+		// Was the entry moved within its section's structure?
+		$section = $element->getSection();
+
+		if ($section->type == SectionType::Structure && $section->structureId == $structureId)
+		{
+			craft()->elements->updateElementSlugAndUri($element);
+		}
 	}
 }

@@ -17,6 +17,16 @@ namespace Craft;
 class ElementTypeVariable extends BaseComponentTypeVariable
 {
 	/**
+	 * Returns whether this element type stores data on a per-locale basis.
+	 *
+	 * @return bool
+	 */
+	public function isLocalized()
+	{
+		return $this->component->isLocalized();
+	}
+
+	/**
 	 * Returns whether this element type can have statuses.
 	 *
 	 * @return bool
@@ -24,6 +34,16 @@ class ElementTypeVariable extends BaseComponentTypeVariable
 	public function hasStatuses()
 	{
 		return $this->component->hasStatuses();
+	}
+
+	/**
+	 * Returns all of the possible statuses that elements of this type may have.
+	 *
+	 * @return array|null
+	 */
+	public function getStatuses()
+	{
+		return $this->component->getStatuses();
 	}
 
 	/**

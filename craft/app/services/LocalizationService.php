@@ -100,7 +100,7 @@ class LocalizationService extends BaseApplicationComponent
 				->from('locales')
 				->order('sortOrder');
 
-			if (!craft()->hasPackage(CraftPackage::Localize))
+			if (craft()->getEdition() != Craft::Pro)
 			{
 				$query->limit(1);
 			}
@@ -167,7 +167,7 @@ class LocalizationService extends BaseApplicationComponent
 	 */
 	public function getEditableLocales()
 	{
-		if (craft()->hasPackage(CraftPackage::Localize))
+		if (craft()->isLocalized())
 		{
 			$locales = $this->getSiteLocales();
 			$editableLocales = array();
@@ -227,7 +227,41 @@ class LocalizationService extends BaseApplicationComponent
 	{
 		$maxSortOrder = craft()->db->createCommand()->select('max(sortOrder)')->from('locales')->queryScalar();
 		$affectedRows = craft()->db->createCommand()->insert('locales', array('locale' => $localeId, 'sortOrder' => $maxSortOrder+1));
-		return (bool) $affectedRows;
+		$success = (bool) $affectedRows;
+
+		if ($success)
+		{
+			$this->_siteLocales[] = new LocaleModel($localeId);
+
+			// Add this locale to each of the category groups
+			$categoryLocales = craft()->db->createCommand()
+				->select('groupId, urlFormat, nestedUrlFormat')
+				->from('categorygroups_i18n')
+				->where('locale = :locale', array(':locale' => $this->getPrimarySiteLocaleId()))
+				->queryAll();
+
+			if ($categoryLocales)
+			{
+				$newCategoryLocales = array();
+
+				foreach ($categoryLocales as $categoryLocale)
+				{
+					$newCategoryLocales[] = array($categoryLocale['groupId'], $localeId, $categoryLocale['urlFormat'], $categoryLocale['nestedUrlFormat']);
+				}
+
+				craft()->db->createCommand()->insertAll('categorygroups_i18n', array('groupId', 'locale', 'urlFormat', 'nestedUrlFormat'), $newCategoryLocales);
+			}
+
+			// Resave all of the localizable elements
+			if (!craft()->tasks->areTasksPending('ResaveAllElements'))
+			{
+				craft()->tasks->createTask('ResaveAllElements', null, array(
+					'localizableOnly' => true,
+				));
+			}
+		}
+
+		return $success;
 	}
 
 	/**
@@ -238,9 +272,58 @@ class LocalizationService extends BaseApplicationComponent
 	 */
 	public function reorderSiteLocales($localeIds)
 	{
+		$oldPrimaryLocaleId = $this->getPrimarySiteLocaleId();
+
 		foreach ($localeIds as $sortOrder => $localeId)
 		{
 			craft()->db->createCommand()->update('locales', array('sortOrder' => $sortOrder+1), array('locale' => $localeId));
+		}
+
+		$this->_siteLocales = null;
+		$newPrimaryLocaleId = $this->getPrimarySiteLocaleId();
+
+		// Did the primary site locale just change?
+		if ($oldPrimaryLocaleId != $newPrimaryLocaleId)
+		{
+			craft()->config->maxPowerCaptain();
+
+			// Update all of the non-localized elements
+			$nonLocalizedElementTypes = array();
+
+			foreach (craft()->elements->getAllElementTypes() as $elementType)
+			{
+				if (!$elementType->isLocalized())
+				{
+					$nonLocalizedElementTypes[] = $elementType->getClassHandle();
+				}
+			}
+
+			if ($nonLocalizedElementTypes)
+			{
+				$elementIds = craft()->db->createCommand()
+					->select('id')
+					->from('elements')
+					->where(array('in', 'type', $nonLocalizedElementTypes))
+					->queryColumn();
+
+				if ($elementIds)
+				{
+					// To be sure we don't hit any unique constraint MySQL errors,
+					// first make sure there are no rows for these elements that don't currently use the old primary locale
+					$deleteConditions = array('and', array('in', 'elementId', $elementIds), 'locale != :locale');
+					$deleteParams = array(':locale' => $oldPrimaryLocaleId);
+
+					craft()->db->createCommand()->delete('elements_i18n', $deleteConditions, $deleteParams);
+					craft()->db->createCommand()->delete('content', $deleteConditions, $deleteParams);
+
+					// Now convert the locales
+					$updateColumns = array('locale' => $newPrimaryLocaleId);
+					$updateConditions = array('in', 'elementId', $elementIds);
+
+					craft()->db->createCommand()->update('elements_i18n', $updateColumns, $updateConditions);
+					craft()->db->createCommand()->update('content', $updateColumns, $updateConditions);
+				}
+			}
 		}
 
 		return true;

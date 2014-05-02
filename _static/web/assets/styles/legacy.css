@@ -3,7 +3,7 @@
  * kaplandia Front End Build
  *
  * Copyright(c): 2014
- * Build Date: 2014-03-29
+ * Build Date: 2014-04-29
  */
 
 .utlty-isHidden{display:none}
@@ -24,3 +24,5 @@
 .btn_sub:before{content:'- or -';position:absolute;font-size:10px;top:19px;left:-18px;z-index:1;color:#fff}
 .utilNav{float:right;width:auto}
 .utilNav-item,.utilNav-item>a{width:auto}
+.quickLinks{display:block}
+.contentBlock{padding:32px}

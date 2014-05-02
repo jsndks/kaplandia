@@ -42,7 +42,7 @@ class DateTimeHelper
 	{
 		// Eventually this will return the time in the appropriate database format for MySQL, Postgre, etc.
 		// For now, it's MySQL only.
-		$date = DateTimeHelper::currentUTCDateTime();
+		$date = static::currentUTCDateTime();
 		return $date->format(DateTime::MYSQL_DATETIME, DateTime::UTC);
 	}
 
@@ -54,16 +54,28 @@ class DateTimeHelper
 	{
 		// Eventually this will accept a database parameter and format the timestamp for the given database date/time datatype.
 		// For now, it's MySQL only.
+
 		if ($timeStamp)
 		{
-			$dt = new DateTime('@'.$timeStamp);
+			if ($timeStamp instanceof \DateTime)
+			{
+				$dt = $timeStamp;
+			}
+			else if (static::isValidTimeStamp($timeStamp))
+			{
+				$dt = new DateTime('@'.$timeStamp);
+			}
+			else
+			{
+				$dt = new DateTime($timeStamp);
+			}
 		}
 		else
 		{
 			$dt = new DateTime();
 		}
 
-		return $dt->format(DateTime::MYSQL_DATETIME, DateTime::UTC);
+		return $dt->format(DateTime::MYSQL_DATETIME, new \DateTimeZone(DateTime::UTC));
 	}
 
 	/**
@@ -548,5 +560,34 @@ class DateTimeHelper
 		}
 
 		return $date;
+	}
+
+	/**
+	 * Takes a PHP time format string and converts it to seconds.
+	 * http://www.php.net/manual/en/datetime.formats.time.php
+	 *
+	 * @param $timeFormatString
+	 * @return string
+	 */
+	public static function timeFormatToSeconds($timeFormatString)
+	{
+		$interval = new DateInterval($timeFormatString);
+		return $interval->toSeconds();
+	}
+
+	/**
+	 * Returns true if interval string is a valid interval.
+	 *
+	 * @param $intervalString
+	 * @return bool
+	 */
+	public static function isValidIntervalString($intervalString)
+	{
+		$interval = DateInterval::createFromDateString($intervalString);
+		if ($interval->s != 0 || $interval->i != 0 || $interval->h != 0 || $interval->d != 0 || $interval->m != 0 || $interval->y != 0)
+		{
+			return true;
+		}
+		return false;
 	}
 }

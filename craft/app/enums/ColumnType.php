@@ -30,7 +30,7 @@ namespace Craft;
  *
 */
 
-class ColumnType
+abstract class ColumnType extends BaseEnum
 {
 	const PK           = 'pk';
 	const Char         = 'char';

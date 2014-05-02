@@ -42,6 +42,7 @@ class EmailModel extends BaseModel
 			'bcc'               => array(AttributeType::Mixed),
 			'stringAttachments' => array(AttributeType::Mixed),
 			'attachments'       => array(AttributeType::Mixed),
+			'customHeaders'     => array(AttributeType::Mixed),
 		);
 	}
 

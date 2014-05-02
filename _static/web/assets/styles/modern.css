@@ -3,7 +3,7 @@
  * kaplandia Front End Build
  *
  * Copyright(c): 2014
- * Build Date: 2014-03-29
+ * Build Date: 2014-04-29
  */
 
 .utlty-isHidden{display:none}
@@ -39,7 +39,9 @@ input[type=password] ::-webkit-input-placeholder,input[type=text] ::-webkit-inpu
 input[type=password] :-moz-placeholder,input[type=text] :-moz-placeholder{color:#a59c94}
 input[type=password] ::-moz-placeholder,input[type=text] ::-moz-placeholder{color:#a59c94}
 input[type=password] :-ms-input-placeholder,input[type=text] :-ms-input-placeholder{color:#a59c94}
-.hdg_1{text-align:center;margin-bottom:24px}
+.construction{text-align:center}
+.hdg_1{font-size:20px;text-align:center;margin-bottom:24px}
+.hdg_2{font-size:45px;text-transform:uppercase}
 .scene{position:fixed;overflow:hidden;bottom:0;width:100%;height:300px;z-index:3}
 .mountain{position:absolute;left:-25%;bottom:0;width:150%;background-repeat:no-repeat;background-size:100% 50%;background-position:center bottom}
 .mountain_1{height:206.5px;background-image:url(../media/images/mount_01.png)}
@@ -47,15 +49,16 @@ input[type=password] :-ms-input-placeholder,input[type=text] :-ms-input-placehol
 .mountain_3{height:279.5px;background-image:url(../media/images/mount_03.png)}
 .mountain_4{height:134.5px;background-image:url(../media/images/mount_04.png)}
 .mountain_5{height:144.5px;background-image:url(../media/images/mount_05.png)}
-.logo{position:relative;display:block;width:100%;text-align:center;margin-bottom:150px}
-.logo>img{width:50%}
+.logo{position:relative;display:block;width:50%;text-align:center;margin:0 auto 150px;z-index:1}
+.logo_alt{position:absolute;bottom:12px;left:12px;width:25%;margin-bottom:0}
+.logo>img{width:100%}
 .rays{position:fixed;bottom:0;left:50%;width:600px;height:600px;margin-left:-300px;z-index:0;-webkit-transform:scale(1.5) translate(0,150px);-moz-transform:scale(1.5) translate(0,150px);-ms-transform:scale(1.5) translate(0,150px);-o-transform:scale(1.5) translate(0,150px);transform:scale(1.5) translate(0,150px)}
 .cloudScene{display:none;position:fixed;top:0;overflow:hidden;width:100%;height:300px;z-index:0}
 .cloud{position:absolute;background-repeat:no-repeat;background-size:100% 50%;background-position:center bottom;opacity:.75}
 .cloud_1{width:822px;height:229px;background-image:url(../media/images/cloud_01.png);left:-50%;top:-70px}
 .cloud_2{top:100px;width:522px;height:174px;background-image:url(../media/images/cloud_02.png);right:-25%}
 .mainContent{position:relative;z-index:2;width:80%;margin:0 auto}
-.site{padding-bottom:300px}
+.mainContent_pad{padding-bottom:300px}
 .site-hd{overflow:hidden;margin-bottom:24px}
 .btn{position:relative;z-index:3;display:inline-block;background-color:#d66508;padding:12px 52px;color:#fff;font-size:12px;text-transform:uppercase;font-family:'Josefin Sans',sans-serif;font-weight:lighter}
 .btn_first:after{content:' '}
@@ -63,6 +66,13 @@ input[type=password] :-ms-input-placeholder,input[type=text] :-ms-input-placehol
 .utilNav-item{float:left;width:50%}
 .utilNav-item>a{-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;width:100%;text-align:center}
 #map{position:absolute;top:0;bottom:0;width:100%}
+.contentBlock{margin-bottom:300px;padding:32px 16px;background-color:rgba(255,255,255,.15)}
+.contentBlock-hd{margin-bottom:32px}
+.quickLinks{display:none;position:fixed;right:12px;padding:32px;background-color:rgba(255,255,255,.15)}
+.locations{display:none;position:relative;z-index:9}
+.pinPopup>*{margin-bottom:12px}
+.blogPreview{padding:25px;background:rgba(255,255,255,.17);margin-bottom:50px}
+.imgPreview{width:100%;height:400px;background-size:cover;background-repeat:no-repeat;margin-bottom:32px}
 @media screen and (min-width:768px){.rays{-webkit-transform:scale(3) translate(0,50px);-moz-transform:scale(3) translate(0,50px);-ms-transform:scale(3) translate(0,50px);-o-transform:scale(3) translate(0,50px);transform:scale(3) translate(0,50px)}
 .cloudScene{display:block}
 .mountain_1{height:413px}
@@ -74,4 +84,6 @@ input[type=password] :-ms-input-placeholder,input[type=text] :-ms-input-placehol
 .btn{padding:13px 52px;font-size:22px;line-height:1}
 .btn_sub:before{content:'- or -';position:absolute;font-size:10px;top:19px;left:-18px;z-index:1;color:#fff}
 .utilNav{float:right;width:auto}
-.utilNav-item,.utilNav-item>a{width:auto}}
+.utilNav-item,.utilNav-item>a{width:auto}
+.quickLinks{display:block}
+.contentBlock{padding:32px}}

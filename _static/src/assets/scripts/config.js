@@ -37,7 +37,9 @@ require.config({
         'parallax': '../vendor/parallax/deploy/parallax',
         'snap': '../vendor/Snap.svg/dist/snap.svg',
         'handlebars': '../vendor/handlebars/handlebars',
-        'text': '../vendor/text/text'
+        'text': '../vendor/text/text',
+        'scrollTo': '../vendor/jquery.scrollTo/jquery.scrollTo',
+        'konamijs': 'lib-thirdparty/konami'
     },
 
     shim: {
@@ -46,6 +48,9 @@ require.config({
         },
         handlebars: {
             exports: 'Handlebars',
+        },
+        scrollTo: {
+            deps: ['jquery']
         }
     },
 

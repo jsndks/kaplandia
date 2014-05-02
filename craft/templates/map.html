@@ -23,13 +23,29 @@
 
 	{% set locations = craft.entries.section('pins').find() %}
 
+	<a href="{{ siteUrl }}" class="logo logo_alt">
+        <img src="{{ siteUrl }}_static/web/assets/media/images/logo.png" alt="" />
+    </a>
+
+	<div class="construction">
+		<h1>Map Content Coming Soon!</h1>
+		<img src="{{ siteUrl }}_static/web/assets/media/images/trailer.png" alt="trailer" />
+	</div>
+
 	<ul class="locations">
 		{% for location in locations %}
-		    <li data-title="{{location}}" data-lat="{{location.mapPin.lat}}" data-lng="{{location.mapPin.lng}}">
-		    	<span class="title">{{location}}</span>
+		    <li data-title="{{ location.title }}" data-lat="{{ location.mapPin.lat }}" data-lng="{{ location.mapPin.lng }}" data-description="{{ location.description }}">
+		    	<span class="title">{{ location.title }}</span>
+		    	<ul class="address">
+		    		<li>{{ location.mapPin.street1 }}</li>
+		    		{% if location.mapPin.state %}
+		    		<li>{{ location.mapPin.city }}, {{ location.mapPin.state }}, {{ location.mapPin.zip }}</li>
+		    		{% endif %}
+		    	</ul>
+		    	<p class="description">{{ location.description }}</p>
 				<ul class="posts">
 					{% for related in location.relatedPost %}
-					<li>{{ related.getLink() }}</li>
+						<li>{{ related.getLink() }}</li>
 					{% endfor %}
 				</ul>
 	    	</li>
@@ -37,30 +53,5 @@
 	</ul>
 
 	<div id="map" class="dark"></div>
-
-	{#
-	<h2 class="hdg hdg_1">{{ entry.title }}</h2>
-    {{ entry.body }}
-
-    {% set locations = craft.entries.section('pins').find() %}
-	{% set options = {
-	    'zoom': 4,
-	    'height': 450
-	} %}
-    {{ craft.smartMap.map(locations, options) }}
-
-    {% for entry in craft.entries.section('pins').find() %}
-	    <h1>{{ entry.title }}</h1>
-	    <div>
-	        {{ entry.mapPin.street1 }}<br />
-	        {{ entry.mapPin.street2 }}<br />
-	        {{ entry.mapPin.city }}, {{ entry.mapPin.state }} {{ entry.mapPin.zip }}<br>
-	    </div>
-	    <div>
-	        Latitude: {{ entry.mapPin.lat }}<br />
-	        Longitude: {{ entry.mapPin.lng }}
-	    </div>
-	{% endfor %}
-	#}
 
 {% endblock %}

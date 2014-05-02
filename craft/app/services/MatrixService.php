@@ -17,6 +17,8 @@ namespace Craft;
 class MatrixService extends BaseApplicationComponent
 {
 	private $_blockTypesById;
+	private $_blockTypesByFieldId;
+	private $_fetchedAllBlockTypesForFieldId;
 	private $_blockTypeRecordsById;
 	private $_blockRecordsById;
 	private $_uniqueBlockTypeAndFieldHandles;
@@ -31,26 +33,38 @@ class MatrixService extends BaseApplicationComponent
 	 */
 	public function getBlockTypesByFieldId($fieldId, $indexBy = null)
 	{
-		$blockTypeRecords = MatrixBlockTypeRecord::model()->ordered()->findAllByAttributes(array(
-			'fieldId' => $fieldId
-		));
+		if (empty($this->_fetchedAllBlockTypesForFieldId[$fieldId]))
+		{
+			$this->_blockTypesByFieldId[$fieldId] = array();
 
-		$blockTypes = MatrixBlockTypeModel::populateModels($blockTypeRecords);
+			$results = $this->_createBlockTypeQuery()
+				->where('fieldId = :fieldId', array(':fieldId' => $fieldId))
+				->queryAll();
+
+			foreach ($results as $result)
+			{
+				$blockType = new MatrixBlockTypeModel($result);
+				$this->_blockTypesById[$blockType->id] = $blockType;
+				$this->_blockTypesByFieldId[$fieldId][] = $blockType;
+			}
+
+			$this->_fetchedAllBlockTypesForFieldId[$fieldId] = true;
+		}
 
 		if (!$indexBy)
 		{
-			return $blockTypes;
+			return $this->_blockTypesByFieldId[$fieldId];
 		}
 		else
 		{
-			$indexedBlockTypes = array();
+			$blockTypes = array();
 
-			foreach ($blockTypes as $blockType)
+			foreach ($this->_blockTypesByFieldId[$fieldId] as $blockType)
 			{
-				$indexedBlockTypes[$blockType->$indexBy] = $blockType;
+				$blockTypes[$blockType->$indexBy] = $blockType;
 			}
 
-			return $indexedBlockTypes;
+			return $blockTypes;
 		}
 	}
 
@@ -64,16 +78,20 @@ class MatrixService extends BaseApplicationComponent
 	{
 		if (!isset($this->_blockTypesById) || !array_key_exists($blockTypeId, $this->_blockTypesById))
 		{
-			$blockTypeRecord = MatrixBlockTypeRecord::model()->findById($blockTypeId);
+			$result = $this->_createBlockTypeQuery()
+				->where('id = :id', array(':id' => $blockTypeId))
+				->queryRow();
 
-			if ($blockTypeRecord)
+			if ($result)
 			{
-				$this->_blockTypesById[$blockTypeId] = MatrixBlockTypeModel::populateModel($blockTypeRecord);
+				$blockType = new MatrixBlockTypeModel($result);
 			}
 			else
 			{
-				$this->_blockTypesById[$blockTypeId] = null;
+				$blockType = null;
 			}
+
+			$this->_blockTypesById[$blockTypeId] = $blockType;
 		}
 
 		return $this->_blockTypesById[$blockTypeId];
@@ -309,7 +327,7 @@ class MatrixService extends BaseApplicationComponent
 				->where(array('typeId' => $blockType->id))
 				->queryColumn();
 
-			craft()->elements->deleteElementById($blockIds);
+			$this->deleteBlockById($blockIds);
 
 			// Now delete the block type fields
 			$originalFieldColumnPrefix = craft()->content->fieldColumnPrefix;
@@ -539,11 +557,23 @@ class MatrixService extends BaseApplicationComponent
 				$handle = $matrixField->handle;
 			}
 
-			$name = '_'.strtolower($handle).$name;
+			$name = '_'.StringHelper::toLowerCase($handle).$name;
 		}
 		while ($matrixField = $this->getParentMatrixField($matrixField));
 
 		return 'matrixcontent'.$name;
+	}
+
+	/**
+	 * Returns a block by its ID.
+	 *
+	 * @param int $blockId
+	 * @param string|null $localeId
+	 * @return MatrixBlockModel|null
+	 */
+	public function getBlockById($blockId, $localeId = null)
+	{
+		return craft()->elements->getElementById($blockId, ElementType::MatrixBlock, $localeId);
 	}
 
 	/**
@@ -571,9 +601,7 @@ class MatrixService extends BaseApplicationComponent
 
 		$fieldLayout = $block->getType()->getFieldLayout();
 
-		craft()->content->prepElementContentForSave($block, $fieldLayout);
-
-		if (!craft()->content->validateElementContent($block, $fieldLayout))
+		if (!craft()->content->validateContent($block))
 		{
 			$block->addErrors($block->getContent()->getErrors());
 		}
@@ -595,67 +623,33 @@ class MatrixService extends BaseApplicationComponent
 	{
 		if (!$validate || $this->validateBlock($block))
 		{
+			$blockRecord = $this->_getBlockRecord($block);
+			$isNewBlock = $blockRecord->isNewRecord();
+
+			$blockRecord->fieldId     = $block->fieldId;
+			$blockRecord->ownerId     = $block->ownerId;
+			$blockRecord->ownerLocale = $block->ownerLocale;
+			$blockRecord->typeId      = $block->typeId;
+			$blockRecord->sortOrder   = $block->sortOrder;
+
 			$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
 			try
 			{
-				$blockRecord = $this->_getBlockRecord($block);
-				$isNewBlock = $blockRecord->isNewRecord();
-
-				$blockRecord->fieldId   = $block->fieldId;
-				$blockRecord->ownerId   = $block->ownerId;
-				$blockRecord->typeId    = $block->typeId;
-				$blockRecord->sortOrder = $block->sortOrder;
-
-				if (!$isNewBlock)
+				if (craft()->elements->saveElement($block, false))
 				{
-					$elementRecord = $blockRecord->element;
+					if ($isNewBlock)
+					{
+						$blockRecord->id = $block->id;
+					}
 
-					$elementLocaleRecord = ElementLocaleRecord::model()->findByAttributes(array(
-						'elementId' => $block->id,
-						'locale'    => $block->locale
-					));
-				}
-				else
-				{
-					$elementRecord = new ElementRecord();
-					$elementRecord->type = ElementType::MatrixBlock;
-				}
+					$blockRecord->save(false);
 
-				$elementRecord->enabled = $block->enabled;
+					if ($transaction !== null)
+					{
+						$transaction->commit();
+					}
 
-				if (empty($elementLocaleRecord))
-				{
-					$elementLocaleRecord = new ElementLocaleRecord();
-					$elementLocaleRecord->locale = $block->locale;
-				}
-
-				// Save the element block first
-				$elementRecord->save(false);
-
-				// Now that we have an element ID, save it on the other stuff
-				$block->id = $elementRecord->id;
-				$blockRecord->id = $block->id;
-				$elementLocaleRecord->elementId = $block->id;
-				$block->getContent()->elementId = $block->id;
-
-				$blockRecord->save(false);
-				$elementLocaleRecord->save(false);
-
-				$originalFieldContext = craft()->content->fieldContext;
-				craft()->content->fieldContext = 'matrixBlockType:'.$block->typeId;
-
-				$originalFieldColumnPrefix = craft()->content->fieldColumnPrefix;
-				craft()->content->fieldColumnPrefix = 'field_'.$block->getType()->handle.'_';
-
-				craft()->content->saveContent($block->getContent());
-				craft()->content->postSaveOperations($block, $block->getContent());
-
-				craft()->content->fieldContext = $originalFieldContext;
-				craft()->content->fieldColumnPrefix = $originalFieldColumnPrefix;
-
-				if ($transaction !== null)
-				{
-					$transaction->commit();
+					return true;
 				}
 			}
 			catch (\Exception $e)
@@ -667,61 +661,114 @@ class MatrixService extends BaseApplicationComponent
 
 				throw $e;
 			}
-
-			return true;
 		}
-		else
+
+		return false;
+	}
+
+	/**
+	 * Deletes a block(s) by its ID.
+	 *
+	 * @param int|array $blockIds
+	 * @return bool
+	 */
+	public function deleteBlockById($blockIds)
+	{
+		if (!$blockIds)
 		{
 			return false;
 		}
+
+		if (!is_array($blockIds))
+		{
+			$blockIds = array($blockIds);
+		}
+
+		// Tell the browser to forget about these
+		craft()->userSession->addJsResourceFlash('js/MatrixInput.js');
+
+		foreach ($blockIds as $blockId)
+		{
+			craft()->userSession->addJsFlash('Craft.MatrixInput.forgetCollapsedBlockId('.$blockId.');');
+		}
+
+		// Pass this along to ElementsService for the heavy lifting
+		return craft()->elements->deleteElementById($blockIds);
 	}
 
 	/**
 	 * Saves a Matrix field.
 	 *
-	 * @param FieldModel $matrixField
-	 * @param int        $ownerId
-	 * @param array      $blocks
+	 * @param MatrixFieldType $fieldType
 	 * @throws \Exception
 	 * @return bool
 	 */
-	public function saveField(FieldModel $matrixField, $ownerId, $blocks)
+	public function saveField(MatrixFieldType $fieldType)
 	{
+		$owner = $fieldType->element;
+		$field = $fieldType->model;
+		$blocks = $owner->getContent()->getAttribute($field->handle);
+
+		if ($blocks === null)
+		{
+			return true;
+		}
+
+		if (!is_array($blocks))
+		{
+			$blocks = array();
+		}
+
 		$transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
 		try
 		{
-			$originalContentTable = craft()->content->contentTable;
-			craft()->content->contentTable = $this->getContentTableName($matrixField);
+			// First thing's first. Let's make sure that the blocks for this field/owner respect the field's translation setting
+			$this->_applyFieldTranslationSetting($owner, $field, $blocks);
 
 			$blockIds = array();
+			$collapsedBlockIds = array();
 
 			foreach ($blocks as $block)
 			{
-				// The owner ID might not have been set yet
-				$block->ownerId = $ownerId;
+				$block->ownerId = $owner->id;
+				$block->ownerLocale = ($field->translatable ? $owner->locale : null);
 
 				$this->saveBlock($block, false);
 
 				$blockIds[] = $block->id;
+
+				// Tell the browser to collapse this block?
+				if ($block->collapsed)
+				{
+					$collapsedBlockIds[] = $block->id;
+				}
 			}
 
 			// Get the IDs of blocks that are row deleted
+			$deletedBlockConditions = array('and',
+				'ownerId = :ownerId',
+				'fieldId = :fieldId',
+				array('not in', 'id', $blockIds)
+			);
+
+			$deletedBlockParams = array(
+				':ownerId' => $owner->id,
+				':fieldId' => $field->id
+			);
+
+			if ($field->translatable)
+			{
+				$deletedBlockConditions[] = 'ownerLocale  = :ownerLocale';
+				$deletedBlockParams[':ownerLocale'] = $owner->locale;
+			}
+
 			$deletedBlockIds = craft()->db->createCommand()
 				->select('id')
 				->from('matrixblocks')
-				->where(array('and',
-					'ownerId = :ownerId',
-					'fieldId = :fieldId',
-					array('not in', 'id', $blockIds)
-				), array(
-					':ownerId' => $ownerId,
-					':fieldId' => $matrixField->id
-				))
+				->where($deletedBlockConditions, $deletedBlockParams)
 				->queryColumn();
 
-			craft()->elements->deleteElementById($deletedBlockIds);
-
-			craft()->content->contentTable = $originalContentTable;
+			$this->deleteBlockById($deletedBlockIds);
 
 			if ($transaction !== null)
 			{
@@ -738,7 +785,33 @@ class MatrixService extends BaseApplicationComponent
 			throw $e;
 		}
 
+		// Tell the browser to collapse any new block IDs
+		if ($collapsedBlockIds)
+		{
+			craft()->userSession->addJsResourceFlash('js/MatrixInput.js');
+
+			foreach ($collapsedBlockIds as $blockId)
+			{
+				craft()->userSession->addJsFlash('Craft.MatrixInput.rememberCollapsedBlockId('.$blockId.');');
+			}
+		}
+
 		return true;
+	}
+
+	// Private methods
+
+	/**
+	 * Returns a DbCommand object prepped for retrieving block types.
+	 *
+	 * @return DbCommand
+	 */
+	private function _createBlockTypeQuery()
+	{
+		return craft()->db->createCommand()
+			->select('id, fieldId, fieldLayoutId, name, handle, sortOrder')
+			->from('matrixblocktypes')
+			->order('sortOrder');
 	}
 
 	/**
@@ -853,5 +926,141 @@ class MatrixService extends BaseApplicationComponent
 		craft()->db->createCommand()->createIndex($name, 'elementId,locale', true);
 		craft()->db->createCommand()->addForeignKey($name, 'elementId', 'elements', 'id', 'CASCADE', null);
 		craft()->db->createCommand()->addForeignKey($name, 'locale', 'locales', 'locale', 'CASCADE', 'CASCADE');
+	}
+
+	/**
+	 * Applies the field's translation setting to a set of blocks.
+	 *
+	 * @access private
+	 * @param BaseElementModel $owner
+	 * @param FieldModel       $field
+	 * @param array            $blocks
+	 */
+	private function _applyFieldTranslationSetting($owner, $field, $blocks)
+	{
+		// Does it look like any work is needed here?
+		$applyNewTranslationSetting = false;
+
+		foreach ($blocks as $block)
+		{
+			if ($block->id && (
+				($field->translatable && !$block->ownerLocale) ||
+				(!$field->translatable && $block->ownerLocale)
+			))
+			{
+				$applyNewTranslationSetting = true;
+				break;
+			}
+		}
+
+		if ($applyNewTranslationSetting)
+		{
+			// Get all of the blocks for this field/owner that use the other locales,
+			// whose ownerLocale attribute is set incorrectly
+			$blocksInOtherLocales = array();
+
+			$criteria = craft()->elements->getCriteria(ElementType::MatrixBlock);
+			$criteria->fieldId = $field->id;
+			$criteria->ownerId = $owner->id;
+			$criteria->status = null;
+			$criteria->localeEnabled = null;
+			$criteria->limit = null;
+
+			if ($field->translatable)
+			{
+				$criteria->ownerLocale = ':empty:';
+			}
+
+			foreach (craft()->i18n->getSiteLocaleIds() as $localeId)
+			{
+				if ($localeId == $owner->locale)
+				{
+					continue;
+				}
+
+				$criteria->locale = $localeId;
+
+				if (!$field->translatable)
+				{
+					$criteria->ownerLocale = $localeId;
+				}
+
+				$blocksInOtherLocale = $criteria->find();
+
+				if ($blocksInOtherLocale)
+				{
+					$blocksInOtherLocales[$localeId] = $blocksInOtherLocale;
+				}
+			}
+
+			if ($blocksInOtherLocales)
+			{
+				if ($field->translatable)
+				{
+					$newBlockIds = array();
+
+					// Duplicate the other-locale blocks so each locale has their own unique set of blocks
+					foreach ($blocksInOtherLocales as $localeId => $blocksInOtherLocale)
+					{
+						foreach ($blocksInOtherLocale as $blockInOtherLocale)
+						{
+							$originalBlockId = $blockInOtherLocale->id;
+
+							$blockInOtherLocale->id = null;
+							$blockInOtherLocale->getContent()->id = null;
+							$blockInOtherLocale->ownerLocale = $localeId;
+							$this->saveBlock($blockInOtherLocale, false);
+
+							$newBlockIds[$originalBlockId][$localeId] = $blockInOtherLocale->id;
+						}
+					}
+
+					// Duplicate the relations, too
+					// First by getting all of the existing relations for the original blocks
+					$relations = craft()->db->createCommand()
+						->select('fieldId, sourceId, sourceLocale, targetId, sortOrder')
+						->from('relations')
+						->where(array('in', 'sourceId', array_keys($newBlockIds)))
+						->queryAll();
+
+					if ($relations)
+					{
+						// Now duplicate each one for the other locales' new blocks
+						$rows = array();
+
+						foreach ($relations as $relation)
+						{
+							$originalBlockId = $relation['sourceId'];
+
+							// Just to be safe...
+							if (isset($newBlockIds[$originalBlockId]))
+							{
+								foreach ($newBlockIds[$originalBlockId] as $localeId => $newBlockId)
+								{
+									$rows[] = array($relation['fieldId'], $newBlockId, $relation['sourceLocale'], $relation['targetId'], $relation['sortOrder']);
+								}
+							}
+						}
+
+						craft()->db->createCommand()->insertAll('relations', array('fieldId', 'sourceId', 'sourceLocale', 'targetId', 'sortOrder'), $rows);
+					}
+				}
+				else
+				{
+					// Delete all of these blocks
+					$blockIdsToDelete = array();
+
+					foreach ($blocksInOtherLocales as $localeId => $blocksInOtherLocale)
+					{
+						foreach ($blocksInOtherLocale as $blockInOtherLocale)
+						{
+							$blockIdsToDelete[] = $blockInOtherLocale->id;
+						}
+					}
+
+					$this->deleteBlockById($blockIdsToDelete);
+				}
+			}
+		}
 	}
 }

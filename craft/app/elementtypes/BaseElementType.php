@@ -22,6 +22,10 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	 */
 	protected $componentType = 'ElementType';
 
+	private $_sourcesByContext;
+
+	// Basic info methods
+
 	/**
 	 * Returns whether this element type has content.
 	 *
@@ -43,6 +47,16 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	}
 
 	/**
+	 * Returns whether this element type stores data on a per-locale basis.
+	 *
+	 * @return bool
+	 */
+	public function isLocalized()
+	{
+		return false;
+	}
+
+	/**
 	 * Returns whether this element type can have statuses.
 	 *
 	 * @return bool
@@ -53,13 +67,16 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	}
 
 	/**
-	 * Returns whether this element type stores data on a per-locale basis.
+	 * Returns all of the possible statuses that elements of this type may have.
 	 *
-	 * @return bool
+	 * @return array|null
 	 */
-	public function isLocalized()
+	public function getStatuses()
 	{
-		return false;
+		return array(
+			BaseElementModel::ENABLED => Craft::t('Enabled'),
+			BaseElementModel::DISABLED => Craft::t('Disabled')
+		);
 	}
 
 	/**
@@ -74,6 +91,25 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	}
 
 	/**
+	 * Returns a source by its key and context.
+	 *
+	 * @param string $key
+	 * @param string|null $context
+	 * @return array|null
+	 */
+	public function getSource($key, $context = null)
+	{
+		$contextKey = ($context ? $context : '*');
+
+		if (!isset($this->_sourcesByContext[$contextKey]))
+		{
+			$this->_sourcesByContext[$contextKey] = $this->getSources($context);
+		}
+
+		return $this->_findSource($key, $this->_sourcesByContext[$contextKey]);
+	}
+
+	/**
 	 * Defines which model attributes should be searchable.
 	 *
 	 * @return array
@@ -81,6 +117,66 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	public function defineSearchableAttributes()
 	{
 		return array();
+	}
+
+	// Element index methods
+
+	/**
+	 * Returns the element index HTML.
+	 *
+	 * @param ElementCriteriaModel $criteria
+	 * @param array $disabledElementIds
+	 * @param array $viewState
+	 * @param string|null $sourceKey
+	 * @param string|null $context
+	 * @return string
+	 */
+	public function getIndexHtml($criteria, $disabledElementIds, $viewState, $sourceKey, $context)
+	{
+		$variables = array(
+			'viewMode'            => $viewState['mode'],
+			'context'             => $context,
+			'elementType'         => new ElementTypeVariable($this),
+			'disabledElementIds'  => $disabledElementIds,
+		);
+
+		switch ($viewState['mode'])
+		{
+			case 'table':
+			{
+				// Make sure the attribute is actually allowed
+				$variables['attributes'] = $this->defineTableAttributes($sourceKey);
+
+				// Ordering by an attribute?
+				if (!empty($viewState['order']) && in_array($viewState['order'], array_keys($variables['attributes'])))
+				{
+					$criteria->order = $viewState['order'].' '.$viewState['sort'];
+					$variables['order'] = $viewState['order'];
+					$variables['sort'] = $viewState['sort'];
+				}
+
+				break;
+			}
+
+			case 'structure':
+			{
+				$source = $this->getSource($sourceKey, $context);
+
+				$variables['structure']           = craft()->structures->getStructureById($source['structureId']);
+				$variables['collapsedElementIds'] = isset($viewState['collapsedElementIds']) ? $viewState['collapsedElementIds'] : array();
+				$variables['newChildUrl']         = (isset($source['newChildUrl']) ? $source['newChildUrl'] : null);
+
+				$criteria->offset = 0;
+				$criteria->limit = null;
+
+				break;
+			}
+		}
+
+		$variables['elements'] = $criteria->find();
+
+		$template = '_elements/'.$viewState['mode'].'view/'.(!$criteria->offset ? 'container' : 'elements');
+		return craft()->templates->render($template, $variables);
 	}
 
 	/**
@@ -117,8 +213,24 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 					{
 						$value = '<span data-icon="home" title="'.Craft::t('Homepage').'"></span>';
 					}
+					else
+					{
+						// Add some <wbr> tags in there so it doesn't all have to be on one line
+						$find = array('/');
+						$replace = array('/<wbr>');
 
-					return '<a href="'.$url.'" target="_blank" class="go">'.$value.'</a>';
+						$wordSeparator = craft()->config->get('slugWordSeparator');
+
+						if ($wordSeparator)
+						{
+							$find[] = $wordSeparator;
+							$replace[] = $wordSeparator.'<wbr>';
+						}
+
+						$value = str_replace($find, $replace, $value);
+					}
+
+					return '<a href="'.$url.'" target="_blank" class="go"><span dir="ltr">'.$value.'</span></a>';
 				}
 				else
 				{
@@ -156,6 +268,8 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 		return array();
 	}
 
+	// Methods for customizing the content table...
+
 	/**
 	 * Returns the content table name that should be joined in for an elements query.
 	 *
@@ -191,6 +305,8 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 		return $columns;
 	}
 
+	// Methods for customizing ElementCriteriaModel's for this element type...
+
 	/**
 	 * Returns the element query condition for a custom status criteria.
 	 *
@@ -213,6 +329,8 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	{
 	}
 
+	// Element methods
+
 	/**
 	 * Populates an element model based on a query result.
 	 *
@@ -221,6 +339,53 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	 */
 	public function populateElementModel($row)
 	{
+	}
+
+	/**
+	 * Returns the HTML for an editor HUD for the given element.
+	 *
+	 * @param BaseElementModel $element
+	 * @return string
+	 */
+	public function getEditorHtml(BaseElementModel $element)
+	{
+		$html = '';
+
+		$fieldLayout = $element->getFieldLayout();
+
+		if ($fieldLayout)
+		{
+			$originalNamespace = craft()->templates->getNamespace();
+			$namespace = craft()->templates->namespaceInputName('fields', $originalNamespace);
+			craft()->templates->setNamespace($namespace);
+
+			foreach ($fieldLayout->getFields() as $fieldLayoutField)
+			{
+				$fieldHtml = craft()->templates->render('_includes/field', array(
+					'element'  => $element,
+					'field'    => $fieldLayoutField->getField(),
+					'required' => $fieldLayoutField->required
+				));
+
+				$html .= craft()->templates->namespaceInputs($fieldHtml, 'fields');
+			}
+
+			craft()->templates->setNamespace($originalNamespace);
+		}
+
+		return $html;
+	}
+
+	/**
+	 * Saves a given element.
+	 *
+	 * @param BaseElementModel $element
+	 * @param array $params
+	 * @return bool
+	 */
+	public function saveElement(BaseElementModel $element, $params)
+	{
+		return craft()->elements->saveElement($element);
 	}
 
 	/**
@@ -234,5 +399,43 @@ abstract class BaseElementType extends BaseComponentType implements IElementType
 	public function routeRequestForMatchedElement(BaseElementModel $element)
 	{
 		return false;
+	}
+
+	/**
+	 * Performs actions after an element has been moved within a structure.
+	 *
+	 * @param BaseElementModel $element
+	 * @param int $structureId
+	 */
+	public function onAfterMoveElementInStructure(BaseElementModel $element, $structureId)
+	{
+	}
+
+	// Private methods
+
+	/**
+	 * Finds a source by its key, even if it's nested.
+	 *
+	 * @param array  $sources
+	 * @param string $key
+	 * @return array|null
+	 */
+	private function _findSource($key, $sources)
+	{
+		if (isset($sources[$key]))
+		{
+			return $sources[$key];
+		}
+		else
+		{
+			// Look through any nested sources
+			foreach ($sources as $key => $source)
+			{
+				if (!empty($source['nested']) && ($nestedSource = $this->_findSource($key, $source['nested'])))
+				{
+					return $nestedSource;
+				}
+			}
+		}
 	}
 }

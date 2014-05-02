@@ -11,7 +11,7 @@ namespace Craft;
  * @link      http://buildwithcraft.com
  */
 
-craft()->requirePackage(CraftPackage::Users);
+craft()->requireEdition(Craft::Pro);
 
 /**
  * Handles user group tasks
@@ -74,6 +74,7 @@ class UserSettingsController extends BaseController
 		$this->requirePostRequest();
 		$this->requireAdmin();
 
+		$settings['requireEmailVerification'] = (bool) craft()->request->getPost('requireEmailVerification');
 		$settings['allowPublicRegistration'] = (bool) craft()->request->getPost('allowPublicRegistration');
 		$settings['defaultGroup'] = craft()->request->getPost('defaultGroup');
 

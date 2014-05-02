@@ -83,7 +83,12 @@ craft_ensureFolderIsReadable(CRAFT_STORAGE_PATH.'runtime/', true);
 $yiit   = CRAFT_APP_PATH.'framework/yiit.php';
 $config = CRAFT_APP_PATH.'etc/config/test.php';
 
+// Load up Yii's test runner.
 require_once($yiit);
+
+// Load up Composer's files
+require CRAFT_APP_PATH.'vendor/autoload.php';
+
 require_once CRAFT_APP_PATH.'Craft.php';
 require_once CRAFT_APP_PATH.'etc/web/WebApp.php';
 require_once CRAFT_APP_PATH.'tests/TestApplication.php';

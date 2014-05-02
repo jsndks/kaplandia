@@ -1,0 +1,17 @@
+<div class="pinPopup">
+    <h2>{{ title }}</h2>
+    <p>{{ description }}</p>
+    <ul>
+        {{#each address}}
+            <li>{{this}}</li>
+        {{/each}}
+    </ul>
+    <h3>Related Posts:</h3>
+    <ul>
+        {{#each posts}}
+        <li>
+            <a href="{{ url }}">{{ title }}</a>
+        </li>
+        {{/each}}
+    </ul>
+</div>

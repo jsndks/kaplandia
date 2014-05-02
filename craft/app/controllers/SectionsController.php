@@ -33,7 +33,7 @@ class SectionsController extends BaseController
 		$variables['sections'] = craft()->sections->getAllSections();
 
 		// Can new sections be added?
-		if (!craft()->hasPackage(CraftPackage::PublishPro))
+		if (craft()->getEdition() == Craft::Personal)
 		{
 			$variables['maxSections'] = 0;
 
@@ -51,6 +51,7 @@ class SectionsController extends BaseController
 	 *
 	 * @param array $variables
 	 * @throws HttpException
+	 * @throws Exception
 	 */
 	public function actionEditSection(array $variables = array())
 	{
@@ -97,7 +98,7 @@ class SectionsController extends BaseController
 
 		if (!$variables['typeOptions'])
 		{
-			throw new Exception(Craft::t('Publish Pro is required to create any additional sections.'));
+			throw new Exception(Craft::t('Craft Client or Pro Edition is required to create any additional sections.'));
 		}
 
 		if (!$variables['section']->type)
@@ -141,17 +142,14 @@ class SectionsController extends BaseController
 		$section->type       = craft()->request->getPost('type');
 
 		// Type-specific attributes
-		$allTypeSettings = craft()->request->getPost('types');
-		$typeSettings = $allTypeSettings[$section->type];
-
-		$section->hasUrls  = (isset($typeSettings['hasUrls']) ? (bool) $typeSettings['hasUrls'] : true);
-		$section->template = (isset($typeSettings['template']) ? $typeSettings['template'] : null);
-		$section->maxDepth = (!empty($typeSettings['maxDepth']) ? $typeSettings['maxDepth'] : null);
+		$section->hasUrls    = (bool) craft()->request->getPost('types.'.$section->type.'.hasUrls', true);
+		$section->template   = craft()->request->getPost('types.'.$section->type.'.template');
+		$section->maxLevels  = craft()->request->getPost('types.'.$section->type.'.maxLevels');
 
 		// Locale-specific attributes
 		$locales = array();
 
-		if (craft()->hasPackage(CraftPackage::Localize))
+		if (craft()->isLocalized())
 		{
 			$localeIds = craft()->request->getPost('locales');
 		}
@@ -161,39 +159,41 @@ class SectionsController extends BaseController
 			$localeIds = array($primaryLocaleId);
 		}
 
-		$isHomepage = ($section->type == SectionType::Single && !empty($typeSettings['homepage']));
+		$isHomepage = ($section->type == SectionType::Single && craft()->request->getPost('types.'.$section->type.'.homepage'));
 
 		foreach ($localeIds as $localeId)
 		{
 			if ($isHomepage)
 			{
-				$urlFormat = '__home__';
+				$urlFormat       = '__home__';
 				$nestedUrlFormat = null;
 			}
 			else
 			{
-				$urlFormat = (isset($typeSettings['urlFormat'][$localeId]) ? trim($typeSettings['urlFormat'][$localeId], '/') : null);
-				$nestedUrlFormat = (isset($typeSettings['nestedUrlFormat'][$localeId]) ? trim($typeSettings['nestedUrlFormat'][$localeId], '/') : null);
+				$urlFormat       = craft()->request->getPost('types.'.$section->type.'.urlFormat.'.$localeId);
+				$nestedUrlFormat = craft()->request->getPost('types.'.$section->type.'.nestedUrlFormat.'.$localeId);
 			}
 
 			$locales[$localeId] = new SectionLocaleModel(array(
-				'locale'          => $localeId,
-				'urlFormat'       => $urlFormat,
-				'nestedUrlFormat' => $nestedUrlFormat,
+				'locale'           => $localeId,
+				'enabledByDefault' => (bool) craft()->request->getPost('defaultLocaleStatuses.'.$localeId),
+				'urlFormat'        => $urlFormat,
+				'nestedUrlFormat'  => $nestedUrlFormat,
 			));
 		}
 
 		$section->setLocales($locales);
+
+		$section->hasUrls    = (bool) craft()->request->getPost('types.'.$section->type.'.hasUrls', true);
 
 		// Save it
 		if (craft()->sections->saveSection($section))
 		{
 			craft()->userSession->setNotice(Craft::t('Section saved.'));
 
-			// TODO: Remove for 2.0
 			if (isset($_POST['redirect']) && mb_strpos($_POST['redirect'], '{sectionId}') !== false)
 			{
-				Craft::log('The {sectionId} token within the ‘redirect’ param on sections/saveSection requests has been deprecated. Use {id} instead.', LogLevel::Warning);
+				craft()->deprecator->log('SectionsController::saveSection():sectionId_redirect', 'The {sectionId} token within the ‘redirect’ param on sections/saveSection requests has been deprecated. Use {id} instead.');
 				$_POST['redirect'] = str_replace('{sectionId}', '{id}', $_POST['redirect']);
 			}
 
@@ -309,11 +309,6 @@ class SectionsController extends BaseController
 			array('label' => Craft::t('Entry Types'), 'url' => UrlHelper::getUrl('settings/sections/'.$variables['sectionId'].'/entrytypes')),
 		);
 
-		$variables['tabs'] = array(
-			'settings'    => array('label' => Craft::t('Settings'),     'url' => '#entrytype-settings'),
-			'fieldlayout' => array('label' => Craft::t('Field Layout'), 'url' => '#entrytype-fieldlayout'),
-		);
-
 		$this->renderTemplate('settings/sections/_entrytypes/edit', $variables);
 	}
 
@@ -327,11 +322,13 @@ class SectionsController extends BaseController
 		$entryType = new EntryTypeModel();
 
 		// Set the simple stuff
-		$entryType->id         = craft()->request->getPost('entryTypeId');
-		$entryType->sectionId  = craft()->request->getRequiredPost('sectionId');
-		$entryType->name       = craft()->request->getPost('name');
-		$entryType->handle     = craft()->request->getPost('handle');
-		$entryType->titleLabel = craft()->request->getPost('titleLabel');
+		$entryType->id            = craft()->request->getPost('entryTypeId');
+		$entryType->sectionId     = craft()->request->getRequiredPost('sectionId');
+		$entryType->name          = craft()->request->getPost('name');
+		$entryType->handle        = craft()->request->getPost('handle');
+		$entryType->hasTitleField = (bool) craft()->request->getPost('hasTitleField', true);
+		$entryType->titleLabel    = craft()->request->getPost('titleLabel');
+		$entryType->titleFormat   = craft()->request->getPost('titleFormat');
 
 		// Set the field layout
 		$fieldLayout = craft()->fields->assembleLayoutFromPost();

@@ -1,7 +1,13 @@
 {% extends "_layouts/message" %}
 {% set title = "Service Unavailable"|t %}
 
-{% set content %}
+{% block message %}
 	<h2>{{ title }}</h2>
-	<p>{{ "Our system is currently under maintenance. Please try again later."|t }}</p>
-{% endset %}
+	<p>
+		{% if message %}
+			{{ message }}
+		{% else %}
+			{{ "Our system is currently under maintenance. Please try again later."|t }}
+		{% endif %}
+	</p>
+{% endblock %}

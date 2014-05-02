@@ -29,6 +29,12 @@ abstract class BaseWidget extends BaseSavableComponentType implements IWidget
 	protected $multi = true;
 
 	/**
+	 * @access protected
+	 * @var bool How many columns the widget should span, if there's enough room.
+	 */
+	protected $colspan = 1;
+
+	/**
 	 * Returns whether this component should be selectable when choosing a component of this type.
 	 *
 	 * @return bool
@@ -46,7 +52,7 @@ abstract class BaseWidget extends BaseSavableComponentType implements IWidget
 	}
 
 	/**
-	 * Gets the widget's title.
+	 * Returns the widget's title.
 	 *
 	 * @return string
 	 */
@@ -54,6 +60,16 @@ abstract class BaseWidget extends BaseSavableComponentType implements IWidget
 	{
 		// Default to the widget name
 		return $this->getName();
+	}
+
+	/**
+	 * Returns the widget's colspan.
+	 *
+	 * @return int
+	 */
+	public function getColspan()
+	{
+		return $this->colspan;
 	}
 
 	/**

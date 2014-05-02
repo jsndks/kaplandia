@@ -38,7 +38,17 @@ if (isset($_SERVER['PATH_INFO']) && $_SERVER['PATH_INFO'] == '/testPathInfo')
  */
 
 // We're already in the app/ folder, so let's use that as the starting point.
-defined('CRAFT_APP_PATH') || define('CRAFT_APP_PATH', str_replace('\\', '/', realpath(dirname(__FILE__)).'/'));
+// Make sure it doesn't look like we're on a network share that starts with \\
+$appPath = realpath(dirname(__FILE__));
+if (isset($appPath[0]) && isset($appPath[1]))
+{
+	if ($appPath[0] !== '\\' && $appPath[1] !== '\\')
+	{
+		$appPath = str_replace('\\', '/', $appPath);
+	}
+}
+
+defined('CRAFT_APP_PATH') || define('CRAFT_APP_PATH', $appPath.'/');
 
 // The app/ folder goes inside craft/ by default, so work backwards from app/
 defined('CRAFT_BASE_PATH') || define('CRAFT_BASE_PATH', realpath(CRAFT_APP_PATH.'..').'/');
@@ -102,8 +112,49 @@ craft_ensureFolderIsReadable(CRAFT_STORAGE_PATH.'runtime/', true);
 // Set the environment
 defined('CRAFT_ENVIRONMENT') || define('CRAFT_ENVIRONMENT', $_SERVER['SERVER_NAME']);
 
-// Load the config early so we can set YII_DEBUG based on Dev Mode before loading Yii
-$commonConfig = require CRAFT_APP_PATH.'etc/config/common.php';
+// We need to special case devMode in the config because YII_DEBUG has to be set as early as possible.
+if (file_exists(CRAFT_CONFIG_PATH.'general.php'))
+{
+	$customConfig = require CRAFT_CONFIG_PATH.'general.php';
+
+	// Is this a multi-environment config?
+	if (array_key_exists('*', $customConfig))
+	{
+		foreach ($customConfig as $env => $envConfig)
+		{
+			if ($env == '*' || strpos(CRAFT_ENVIRONMENT, $env) !== false)
+			{
+				// Does this environment have devMode enabled?
+				if (isset($envConfig['devMode']) && $envConfig['devMode'] === true)
+				{
+					error_reporting(E_ALL & ~E_STRICT);
+					ini_set('display_errors', 1);
+					defined('YII_DEBUG') || define('YII_DEBUG', true);
+					defined('YII_TRACE_LEVEL') || define('YII_TRACE_LEVEL', 3);
+				}
+			}
+		}
+	}
+	else
+	{
+		// No multi-environment config, just check to see if devMode is enabled.
+		if (isset($customConfig['devMode']) && $customConfig['devMode'] === true)
+		{
+			error_reporting(E_ALL & ~E_STRICT);
+			ini_set('display_errors', 1);
+			defined('YII_DEBUG') || define('YII_DEBUG', true);
+			defined('YII_TRACE_LEVEL') || define('YII_TRACE_LEVEL', 3);
+		}
+	}
+
+}
+else
+{
+	// No general.php on the front end, so devMode is off.
+	error_reporting(0);
+	ini_set('display_errors', 0);
+	defined('YII_DEBUG') || define('YII_DEBUG', false);
+}
 
 /**
  * Load Yii, Composer dependencies, and the app
@@ -112,8 +163,6 @@ $commonConfig = require CRAFT_APP_PATH.'etc/config/common.php';
 // Load Yii, if it's not already
 if (!class_exists('Yii', false))
 {
-	defined('YII_DEBUG') || define('YII_DEBUG', !empty($commonConfig['components']['config']['generalConfig']['devMode']));
-	defined('YII_TRACE_LEVEL') || define('YII_TRACE_LEVEL', 3);
 	require CRAFT_APP_PATH.'framework/yii.php';
 }
 

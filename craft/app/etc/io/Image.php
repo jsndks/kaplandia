@@ -11,17 +11,21 @@ namespace Craft;
  * @link      http://buildwithcraft.com
  */
 
-/**
- * Image
- */
 class Image
 {
 	private $_imageSourcePath;
-	private $_image;
 	private $_extension;
+	private $_isAnimatedGif = false;
+	private $_quality = 0;
+
+	/**
+	 * @var \Imagine\Image\ImageInterface
+	 */
+	private $_image;
+	/**
+	 * @var \Imagine\Image\ImagineInterface
+	 */
 	private $_instance;
-	private $_width;
-	private $_height;
 
 	function __construct()
 	{
@@ -33,24 +37,25 @@ class Image
 		{
 			$this->_instance = new \Imagine\Imagick\Imagine();
 		}
+
+		$this->_quality = craft()->config->get('defaultImageQuality');
 	}
 
 	/**
-	 * TODO?
 	 * @return int
 	 */
 	public function getWidth()
 	{
-		return $this->_width;
+		return $this->_image->getSize()->getWidth();
+
 	}
 
 	/**
-	 * TODO?
 	 * @return int
 	 */
 	public function getHeight()
 	{
-		return $this->_height;
+		return $this->_image->getSize()->getHeight();
 	}
 
 	/**
@@ -89,8 +94,14 @@ class Image
 		$this->_image = $this->_instance->open($path);
 		$this->_extension = IOHelper::getExtension($path);
 		$this->_imageSourcePath = $path;
-		$this->_width = $this->_image->getSize()->getWidth();
-		$this->_height = $this->_image->getSize()->getHeight();
+
+		if ($this->_extension == 'gif')
+		{
+			if (!craft()->images->isGd() && $this->_image->layers())
+			{
+				$this->_isAnimatedGif = true;
+			}
+		}
 
 		return $this;
 	}
@@ -109,7 +120,27 @@ class Image
 		$width = $x2 - $x1;
 		$height = $y2 - $y1;
 
-		$this->_image->crop(new \Imagine\Image\Point($x1, $y1), new \Imagine\Image\Box($width, $height));
+		if ($this->_isAnimatedGif)
+		{
+
+			// Create a new image instance to avoid object references messing up our dimensions.
+			$newSize = new \Imagine\Image\Box($width, $height);
+			$startingPoint = new \Imagine\Image\Point($x1, $y1);
+			$gif = $this->_instance->create($newSize);
+			$gif->layers()->remove(0);
+
+			foreach ($this->_image->layers() as $layer)
+			{
+				$croppedLayer = $layer->crop($startingPoint, $newSize);
+				$gif->layers()->add($croppedLayer);
+			}
+
+			$this->_image = $gif;
+		}
+		else
+		{
+			$this->_image->crop(new \Imagine\Image\Point($x1, $y1), new \Imagine\Image\Box($width, $height));
+		}
 
 		return $this;
 	}
@@ -237,8 +268,40 @@ class Image
 	public function resize($targetWidth, $targetHeight = null)
 	{
 		$this->_normalizeDimensions($targetWidth, $targetHeight);
-		$this->_image->resize(new \Imagine\Image\Box($targetWidth, $targetHeight), $this->_getResizeFilter());
 
+		if ($this->_isAnimatedGif)
+		{
+
+			// Create a new image instance to avoid object references messing up our dimensions.
+			$newSize = new \Imagine\Image\Box($targetWidth, $targetHeight);
+			$gif = $this->_instance->create($newSize);
+			$gif->layers()->remove(0);
+
+			foreach ($this->_image->layers() as $layer)
+			{
+				$resizedLayer = $layer->resize($newSize, $this->_getResizeFilter());
+				$gif->layers()->add($resizedLayer);
+			}
+
+			$this->_image = $gif;
+		}
+		else
+		{
+			$this->_image->resize(new \Imagine\Image\Box($targetWidth, $targetHeight), $this->_getResizeFilter());
+		}
+
+		return $this;
+	}
+
+	/**
+	 * Set image quality.
+	 *
+	 * @param $quality
+	 * @return Image
+	 */
+	public function setQuality($quality)
+	{
+		$this->_quality = $quality;
 		return $this;
 	}
 
@@ -252,7 +315,8 @@ class Image
 	public function saveAs($targetPath, $sanitizeAndAutoQuality = false)
 	{
 		$extension = $this->getExtension();
-		$options = $this->_getSaveOptions();
+
+		$options = $this->_getSaveOptions(false);
 
 		if (($extension == 'jpeg' || $extension == 'jpg' || $extension == 'png') && $sanitizeAndAutoQuality)
 		{
@@ -345,12 +409,14 @@ class Image
 	}
 
 	/**
-	 * @param null $quality
+	 * Get save options.
+	 *
+	 * @param null       $quality
 	 * @return array
 	 */
 	private function _getSaveOptions($quality = null)
 	{
-		$quality = (!$quality ? craft()->config->get('defaultImageQuality') : $quality);
+		$quality = (!$quality ? $this->_quality : $quality);
 
 		switch ($this->getExtension())
 		{
@@ -362,7 +428,14 @@ class Image
 
 			case 'gif':
 			{
-				return array('flatten' => false);
+				$options = array('animated' => $this->_isAnimatedGif);
+				if ($this->_isAnimatedGif)
+				{
+					// Imagine library does not provide this value anda arbitrarily divides it by 10, when assigning
+					// So we have to improvise a little
+					$options['animated.delay'] = $this->_image->getImagick()->getImageDelay() * 10;
+				}
+				return $options;
 			}
 
 			case 'png':

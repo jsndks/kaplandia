@@ -44,27 +44,39 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	protected function defineAttributes()
 	{
 		$attributes = array(
-			'archived'      => AttributeType::Bool,
-			'dateCreated'   => AttributeType::Mixed,
-			'dateUpdated'   => AttributeType::Mixed,
-			'fixedOrder'    => AttributeType::Bool,
-			'id'            => AttributeType::Number,
-			'indexBy'       => AttributeType::String,
-			'limit'         => array(AttributeType::Number, 'default' => 100),
-			'locale'        => AttributeType::Locale,
-			'offset'        => array(AttributeType::Number, 'default' => 0),
-			'order'         => array(AttributeType::String, 'default' => 'elements.dateCreated desc'),
-			'relatedTo'     => AttributeType::Mixed,
-			'ref'           => AttributeType::String,
-			'search'        => AttributeType::String,
-			'status'        => array(AttributeType::String, 'default' => BaseElementModel::ENABLED),
-			'uri'           => AttributeType::String,
+			'ancestorDist'   => AttributeType::Number,
+			'ancestorOf'     => AttributeType::Mixed,
+			'archived'       => AttributeType::Bool,
+			'dateCreated'    => AttributeType::Mixed,
+			'dateUpdated'    => AttributeType::Mixed,
+			'descendantDist' => AttributeType::Number,
+			'descendantOf'   => AttributeType::Mixed,
+			'fixedOrder'     => AttributeType::Bool,
+			'id'             => AttributeType::Number,
+			'indexBy'        => AttributeType::String,
+			'level'          => AttributeType::Number,
+			'limit'          => array(AttributeType::Number, 'default' => 100),
+			'locale'         => AttributeType::Locale,
+			'localeEnabled'  => array(AttributeType::Bool, 'default' => true),
+			'nextSiblingOf'  => AttributeType::Mixed,
+			'offset'         => array(AttributeType::Number, 'default' => 0),
+			'order'          => array(AttributeType::String, 'default' => 'elements.dateCreated desc'),
+			'prevSiblingOf'  => AttributeType::Mixed,
+			'relatedTo'      => AttributeType::Mixed,
+			'ref'            => AttributeType::String,
+			'search'         => AttributeType::String,
+			'siblingOf'      => AttributeType::Mixed,
+			'slug'           => AttributeType::String,
+			'status'         => array(AttributeType::String, 'default' => BaseElementModel::ENABLED),
+			'uri'            => AttributeType::String,
+			'kind'           => AttributeType::Mixed,
 
-			// Deprecated
-			'childField'    => AttributeType::String,
-			'childOf'       => AttributeType::Mixed,
-			'parentField'   => AttributeType::String,
-			'parentOf'      => AttributeType::Mixed,
+			// TODO: Deprecated
+			'childField'     => AttributeType::String,
+			'childOf'        => AttributeType::Mixed,
+			'depth'          => AttributeType::Number,
+			'parentField'    => AttributeType::String,
+			'parentOf'       => AttributeType::Mixed,
 		);
 
 		// Mix in any custom attributes defined by the element type
@@ -80,7 +92,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 			if (!isset($attributes[$field->handle]))
 			{
 				$this->_supportedFieldHandles[] = $field->handle;
-				$attributes[$field->handle] = array(AttributeType::Mixed, 'default' => false);
+				$attributes[$field->handle] = array(AttributeType::Mixed);
 			}
 		}
 
@@ -252,6 +264,8 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	{
 		$this->setAttributes($attributes);
 
+		$this->_includeInTemplateCaches();
+
 		if (!isset($this->_cachedElements))
 		{
 			$this->_cachedElements = craft()->elements->findElements($this);
@@ -337,6 +351,8 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	{
 		$this->setAttributes($attributes);
 
+		$this->_includeInTemplateCaches();
+
 		if (!isset($this->_cachedIds))
 		{
 			$this->_cachedIds = craft()->elements->findElements($this, true);
@@ -355,11 +371,39 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	{
 		$this->setAttributes($attributes);
 
+		$this->_includeInTemplateCaches();
+
 		if (!isset($this->_cachedTotal))
 		{
 			$this->_cachedTotal = craft()->elements->getTotalElements($this);
 		}
 
 		return $this->_cachedTotal;
+	}
+
+	/**
+	 * Returns a copy of this model.
+	 *
+	 * @return BaseModel
+	 */
+	public function copy()
+	{
+		$class = get_class($this);
+		return new $class($this->getAttributes(), $this->_elementType);
+	}
+
+	/**
+	 * Includes
+	 *
+	 * @access private
+	 */
+	private function _includeInTemplateCaches()
+	{
+		$cacheService = craft()->getComponent('templateCache', false);
+
+		if ($cacheService)
+		{
+			$cacheService->includeCriteriaInTemplateCaches($this);
+		}
 	}
 }

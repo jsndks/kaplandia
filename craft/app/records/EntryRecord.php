@@ -31,10 +31,6 @@ class EntryRecord extends BaseRecord
 	protected function defineAttributes()
 	{
 		return array(
-			'root'       => array(AttributeType::Number),
-			'lft'        => array(AttributeType::Number, 'min' => 0),
-			'rgt'        => array(AttributeType::Number, 'min' => 0),
-			'depth'      => array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::SmallInt),
 			'postDate'   => AttributeType::DateTime,
 			'expiryDate' => AttributeType::DateTime,
 		);
@@ -52,7 +48,7 @@ class EntryRecord extends BaseRecord
 			'author'  => array(static::BELONGS_TO, 'UserRecord', 'onDelete' => static::CASCADE),
 		);
 
-		if (craft()->hasPackage(CraftPackage::PublishPro))
+		if (craft()->getEdition() == Craft::Pro)
 		{
 			$relations['versions'] = array(static::HAS_MANY, 'EntryVersionRecord', 'elementId');
 		}
@@ -68,10 +64,6 @@ class EntryRecord extends BaseRecord
 		return array(
 			array('columns' => array('sectionId')),
 			array('columns' => array('typeId')),
-			array('columns' => array('root')),
-			array('columns' => array('lft')),
-			array('columns' => array('rgt')),
-			array('columns' => array('depth')),
 			array('columns' => array('postDate')),
 			array('columns' => array('expiryDate')),
 		);

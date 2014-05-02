@@ -10,6 +10,16 @@
  * @link      http://buildwithcraft.com
  */
 
+/**
+ * Craft by Pixel & Tonic
+ *
+ * @package   Craft
+ * @author    Pixel & Tonic, Inc.
+ * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
+ * @license   http://buildwithcraft.com/license Craft License Agreement
+ * @link      http://buildwithcraft.com
+ */
+
 return array (
 	'account_activation_heading' => 'When someone creates an account:',
 	'account_activation_subject' => 'Activate your account',
@@ -39,6 +49,4 @@ return array (
 		"{% for key, setting in settings %}".
 		"{{ key }}:  {{ setting }}\n".
 		"{% endfor %}",
-
-	'PublishPro' => 'Publish Pro',
 );

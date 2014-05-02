@@ -8,8 +8,8 @@
  * @link      http://buildwithcraft.com
  */
 
-test( 'Craft.getUrl()', function() {
-
+test( 'Craft.getUrl()', function()
+{
 	// Setup for a site with path info
 	Craft.baseUrl = 'http://craft.dev/admin';
 	Craft.baseCpUrl = 'http://craft.dev/admin';
@@ -21,8 +21,7 @@ test( 'Craft.getUrl()', function() {
 	Craft.resourceTrigger = 'resources';
 	Craft.actionTrigger = 'actions';
 	Craft.path = '';
-	Craft.language = 'en_us';
-	Craft.packages = [];
+	Craft.locale = 'en_us';
 	Craft.translations = [];
 	Craft.maxUploadSize = 33554432;
 

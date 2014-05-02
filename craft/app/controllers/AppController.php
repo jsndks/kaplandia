@@ -97,75 +97,87 @@ class AppController extends BaseController
 	}
 
 	/**
-	 * Fetches the installed package info from Elliott.
+	 * Returns the editon upgrade modal.
 	 */
-	public function actionFetchPackageInfo()
+	public function actionGetUpgradeModal()
 	{
 		$this->requireAjaxRequest();
 		craft()->userSession->requireAdmin();
 
-		$etResponse = craft()->et->fetchPackageInfo();
+		$etResponse = craft()->et->fetchEditionInfo();
 
-		if ($etResponse)
+		if (!$etResponse)
 		{
-			// Make sure we've got a valid license key (mismatched domain is OK for these purposes)
-			if ($etResponse->licenseKeyStatus != LicenseKeyStatus::Invalid)
+			$this->returnErrorJson(Craft::t('Craft is unable to fetch edition info at this time.'));
+		}
+
+		// Make sure we've got a valid license key (mismatched domain is OK for these purposes)
+		if ($etResponse->licenseKeyStatus == LicenseKeyStatus::Invalid)
+		{
+			$this->returnErrorJson(Craft::t('Your license key is invalid.'));
+		}
+
+		// Make sure they've got a valid licensed edition, just to be safe
+		if (!AppHelper::isValidEdition($etResponse->licensedEdition))
+		{
+			$this->returnErrorJson(Craft::t('Your license has an invalid Craft edition associated with it.'));
+		}
+
+		$editions = array();
+
+		foreach ($etResponse->data as $edition => $info)
+		{
+			$editions[$edition]['price']          = $info['price'];
+			$editions[$edition]['formattedPrice'] = craft()->numberFormatter->formatCurrency($info['price'], 'USD', true);
+
+			if (isset($info['salePrice']) && $info['salePrice'] < $info['price'])
 			{
-				$packages = $etResponse->data;
-
-				// Include which packages are actually licensed
-				foreach ($etResponse->licensedPackages as $packageName)
-				{
-					$packages[$packageName]['licensed'] = true;
-				}
-
-				// Include which packages are in trial
-				foreach ($etResponse->packageTrials as $packageName => $expiryDate)
-				{
-					$currentTime = DateTimeHelper::currentUTCDateTime();
-					$diff = $expiryDate - $currentTime->getTimestamp();
-					$daysLeft = round($diff / 86400); // 60 * 60 * 24
-
-					$packages[$packageName]['trial'] = true;
-					$packages[$packageName]['daysLeftInTrial'] = $daysLeft;
-				}
-
-				$this->returnJson(array(
-					'success'  => true,
-					'packages' => $packages
-				));
+				$editions[$edition]['salePrice']          = $info['salePrice'];
+				$editions[$edition]['formattedSalePrice'] = craft()->numberFormatter->formatCurrency($info['salePrice'], 'USD', true);
 			}
 			else
 			{
-				$this->returnErrorJson(Craft::t('Your license key is invalid.'));
+				$editions[$edition]['salePrice'] = null;
 			}
 		}
-		else
-		{
-			$this->returnErrorJson(Craft::t('Craft is unable to fetch package info at this time.'));
-		}
+
+		$canTestEditions = craft()->canTestEditions();
+
+		$modalHtml = craft()->templates->render('_upgrademodal', array(
+			'editions'        => $editions,
+			'licensedEdition' => $etResponse->licensedEdition,
+			'canTestEditions' => $canTestEditions
+		));
+
+		$this->returnJson(array(
+			'success'         => true,
+			'editions'        => $editions,
+			'licensedEdition' => $etResponse->licensedEdition,
+			'canTestEditions' => $canTestEditions,
+			'modalHtml'       => $modalHtml
+		));
 	}
 
 	/**
-	 * Passes along a given CC token to Elliott to purchase a package.
+	 * Passes along a given CC token to Elliott to purchase a Craft edition.
 	 */
-	public function actionPurchasePackage()
+	public function actionPurchaseUpgrade()
 	{
 		$this->requirePostRequest();
 		$this->requireAjaxRequest();
 		craft()->userSession->requireAdmin();
 
-		$model = new PackagePurchaseOrderModel(array(
+		$model = new UpgradePurchaseModel(array(
 			'ccTokenId'     => craft()->request->getRequiredPost('ccTokenId'),
-			'package'       => craft()->request->getRequiredPost('package'),
+			'edition'       => craft()->request->getRequiredPost('edition'),
 			'expectedPrice' => craft()->request->getRequiredPost('expectedPrice'),
 		));
 
-		if (craft()->et->purchasePackage($model))
+		if (craft()->et->purchaseUpgrade($model))
 		{
 			$this->returnJson(array(
 				'success' => true,
-				'package' => $model->package
+				'edition' => $model->edition
 			));
 		}
 		else
@@ -177,64 +189,46 @@ class AppController extends BaseController
 	}
 
 	/**
-	 * Installs a package.
+	 * Tries a Craft edition on for size.
 	 */
-	public function actionInstallPackage()
+	public function actionTestUpgrade()
 	{
 		$this->requirePostRequest();
 		$this->requireAjaxRequest();
 		craft()->userSession->requireAdmin();
 
-		$package = craft()->request->getRequiredPost('package');
-		$success = craft()->installPackage($package);
-
-		$this->returnJson(array(
-			'success' => $success
-		));
-	}
-
-	/**
-	 * Uninstalls a package.
-	 */
-	public function actionUninstallPackage()
-	{
-		$this->requirePostRequest();
-		$this->requireAjaxRequest();
-		craft()->userSession->requireAdmin();
-
-		$package = craft()->request->getRequiredPost('package');
-		$success = craft()->uninstallPackage($package);
-
-		$this->returnJson(array(
-			'success' => $success
-		));
-	}
-
-	/**
-	 * Begins a package trial.
-	 */
-	public function actionBeginPackageTrial()
-	{
-		$this->requirePostRequest();
-		$this->requireAjaxRequest();
-		craft()->userSession->requireAdmin();
-
-		$model = new TryPackageModel(array(
-			'packageHandle' => craft()->request->getRequiredPost('package'),
-		));
-
-		if (craft()->et->tryPackage($model))
+		if (!craft()->canTestEditions())
 		{
-			$this->returnJson(array(
-				'success' => true,
-				'package' => $model->packageHandle
-			));
+			throw new Exception('Tried to test an edition, but Craft isn\'t allowed to do that.');
+		}
+
+		$edition = craft()->request->getRequiredPost('edition');
+		craft()->setEdition($edition);
+
+		$this->returnJson(array(
+			'success' => true
+		));
+	}
+
+	/**
+	 * Switches Craft to the edition it's licensed for.
+	 */
+	public function actionSwitchToLicensedEdition()
+	{
+		$this->requirePostRequest();
+		$this->requireAjaxRequest();
+
+		if (craft()->hasWrongEdition())
+		{
+			$licensedEdition = craft()->getLicensedEdition();
+			$success = craft()->setEdition($licensedEdition);
 		}
 		else
 		{
-			$this->returnJson(array(
-				'errors' => $model->getErrors()
-			));
+			// Just fake it
+			$success = true;
 		}
+
+		$this->returnJson(array('success' => $success));
 	}
 }

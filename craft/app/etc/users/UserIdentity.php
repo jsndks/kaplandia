@@ -48,6 +48,14 @@ class UserIdentity extends \CUserIdentity
 	}
 
 	/**
+	 * @return mixed
+	 */
+	public function getId()
+	{
+		return $this->_id;
+	}
+
+	/**
 	 * @access private
 	 * @param UserModel $user
 	 * @throws Exception
@@ -99,9 +107,7 @@ class UserIdentity extends \CUserIdentity
 					else
 					{
 						// Finally, everything is well with the world. Let's log in.
-						$this->_id = $user->id;
-						$this->username = $user->username;
-						$this->errorCode = static::ERROR_NONE;
+						$this->logUserIn($user);
 					}
 				}
 				else
@@ -129,6 +135,16 @@ class UserIdentity extends \CUserIdentity
 	}
 
 	/**
+	 * @param $user
+	 */
+	public function logUserIn($user)
+	{
+		$this->_id = $user->id;
+		$this->username = $user->username;
+		$this->errorCode = static::ERROR_NONE;
+	}
+
+	/**
 	 * Returns the proper Account Locked error code, based on the system's Invalid Login Mode
 	 *
 	 * @access private
@@ -144,13 +160,5 @@ class UserIdentity extends \CUserIdentity
 		{
 			return static::ERROR_ACCOUNT_LOCKED;
 		}
-	}
-
-	/**
-	 * @return mixed
-	 */
-	public function getId()
-	{
-		return $this->_id;
 	}
 }

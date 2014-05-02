@@ -17,6 +17,42 @@ namespace Craft;
 class DbCommand extends \CDbCommand
 {
 	/**
+	 * @access private
+	 * @var array Captures the joined tables
+	 */
+	private $_joinedTables;
+
+	/**
+	 * Constructor
+	 */
+	public function __construct(\CDbConnection $connection, $query = null)
+	{
+		$this->_joinedTables = array();
+		parent::__construct($connection, $query);
+	}
+
+	/**
+	 * Returns the tables that have been joined.
+	 *
+	 * @return array
+	 */
+	public function getJoinedTables()
+	{
+		return $this->_joinedTables;
+	}
+
+	/**
+	 * Returns whether a given table has been joined in this query.
+	 *
+	 * @param string $table
+	 * @return bool
+	 */
+	public function isJoined($table)
+	{
+		return in_array($table, $this->_joinedTables);
+	}
+
+	/**
 	 * Returns the total number of rows matched by the query.
 	 *
 	 * @param string $column The column to count.
@@ -130,6 +166,7 @@ class DbCommand extends \CDbCommand
 	 */
 	public function join($table, $conditions, $params = array())
 	{
+		$this->_addJoinedTable($table);
 		$table = DbHelper::addTablePrefix($table);
 		$conditions = $this->_normalizeConditions($conditions, $params);
 		return parent::join($table, $conditions, $params);
@@ -143,6 +180,7 @@ class DbCommand extends \CDbCommand
 	 */
 	public function leftJoin($table, $conditions, $params = array())
 	{
+		$this->_addJoinedTable($table);
 		$table = DbHelper::addTablePrefix($table);
 		$conditions = $this->_normalizeConditions($conditions, $params);
 		return parent::leftJoin($table, $conditions, $params);
@@ -156,6 +194,7 @@ class DbCommand extends \CDbCommand
 	 */
 	public function rightJoin($table, $conditions, $params = array())
 	{
+		$this->_addJoinedTable($table);
 		$table = DbHelper::addTablePrefix($table);
 		$conditions = $this->_normalizeConditions($conditions, $params);
 		return parent::rightJoin($table, $conditions, $params);
@@ -167,6 +206,7 @@ class DbCommand extends \CDbCommand
 	 */
 	public function crossJoin($table)
 	{
+		$this->_addJoinedTable($table);
 		$table = DbHelper::addTablePrefix($table);
 		return parent::crossJoin($table);
 	}
@@ -177,6 +217,7 @@ class DbCommand extends \CDbCommand
 	 */
 	public function naturalJoin($table)
 	{
+		$this->_addJoinedTable($table);
 		$table = DbHelper::addTablePrefix($table);
 		return parent::naturalJoin($table);
 	}
@@ -334,6 +375,20 @@ class DbCommand extends \CDbCommand
 		}
 
 		return parent::update($table, $columns, $conditions, $params);
+	}
+
+	/**
+	 * @param string $table
+	 * @param string $column
+	 * @param string $find
+	 * @param string $replace
+	 * @return int
+	 */
+	public function replace($table, $column, $find, $replace)
+	{
+		$table = DbHelper::addTablePrefix($table);
+		$queryParams = $this->getConnection()->getSchema()->replace($table, $column, $find, $replace);
+		return $this->setText($queryParams['query'])->execute($queryParams['params']);
 	}
 
 	/**
@@ -595,9 +650,38 @@ class DbCommand extends \CDbCommand
 	}
 
 	/**
+	 * Adds a table to our record of joined tables.
+	 *
+	 * @access private
+	 * @param string $table The table name
+	 * @return bool
+	 */
+	private function _addJoinedTable($table)
+	{
+		// If there's an alias set, use the alias rather than the "real" table name.
+		$parts = explode(' ', $table);
+
+		if (count($parts) == 1)
+		{
+			$table = $parts[0];
+		}
+		else
+		{
+			$table = $parts[1];
+		}
+
+		// Don't add any backticks or whatever
+		if (preg_match('/\w+/', $table, $matches))
+		{
+			$this->_joinedTables[] = $matches[0];
+		}
+	}
+
+	/**
 	 * Adds support for array('column' => 'value') conditional syntax.
 	 * Supports nested conditionals, e.g. array('or', array('column' => 'value'), array('column2' => 'value2'))
 	 *
+	 * @access private
 	 * @param mixed $conditions
 	 * @param array &$params
 	 * @return mixed
@@ -637,7 +721,7 @@ class DbCommand extends \CDbCommand
 			if ($conditions)
 			{
 				// Is this already an AND conditional?
-				if (mb_strtolower($conditions[0]) == 'and')
+				if (StringHelper::toLowerCase($conditions[0]) == 'and')
 				{
 					// Just merge our normalized conditions into the $conditions
 					$conditions = array_merge($conditions, $normalizedConditions);

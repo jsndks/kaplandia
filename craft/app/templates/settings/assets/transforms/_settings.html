@@ -22,7 +22,7 @@
 
 
 {% set content %}
-	<form method="post" action="" accept-charset="UTF-8" data-saveshortcut="1">
+	<form method="post" accept-charset="UTF-8" data-saveshortcut="1">
 		<input type="hidden" name="action" value="assetTransforms/saveTransform">
 		<input type="hidden" name="redirect" value="settings/assets/transforms">
 
@@ -110,6 +110,16 @@
 			size: 5,
 			value: (transform is defined ? transform.height : null),
 			errors: (transform is defined ? transform.getErrors('height') : null),
+			translatable: true
+		}) }}
+
+		{{ forms.textField({
+			label: "Quality"|t,
+			id: "quality",
+			name: "quality",
+			size: 5,
+			value: (transform is defined ? transform.quality : null),
+			errors: (transform is defined ? transform.getErrors('quality') : null),
 			translatable: true
 		}) }}
 

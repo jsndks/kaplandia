@@ -102,6 +102,24 @@ class DateFormatter extends \CDateFormatter
 	}
 
 	/**
+	 * Add support for DateTime objects.
+	 *
+	 * @param string|DateTime $timestamp
+	 * @param string $dateWidth
+	 * @param string $timeWidth
+	 * @return string
+	 */
+	public function formatDateTime($timestamp, $dateWidth = 'medium', $timeWidth = 'medium')
+	{
+		if ($timestamp instanceof \DateTime)
+		{
+			$timestamp = $timestamp->getTimestamp();
+		}
+
+		return parent::formatDateTime($timestamp, $dateWidth, $timeWidth);
+	}
+
+	/**
 	 * Returns the date format used by the datepicker.
 	 * Similar to 'short' except we want to use 4 digit years instead of 2.
 	 *
@@ -114,7 +132,7 @@ class DateFormatter extends \CDateFormatter
 			$this->_datepickerCLocaleFormat = $this->_locale->getDateFormat('short');
 
 			// Swap 2-digit years with 4.
-			$this->_datepickerCLocaleFormat = str_replace('yy', 'y', $this->_datepickerCLocaleFormat);
+			$this->_datepickerCLocaleFormat = preg_replace('/y+/', 'y', $this->_datepickerCLocaleFormat);
 		}
 
 		return $this->_datepickerCLocaleFormat;

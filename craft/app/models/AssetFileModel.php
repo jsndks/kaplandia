@@ -62,6 +62,7 @@ class AssetFileModel extends BaseElementModel
 	 * Magic getter
 	 *
 	 * @param string $name
+	 * @throws \Exception
 	 * @return mixed
 	 */
 	function __get($name)
@@ -141,6 +142,30 @@ class AssetFileModel extends BaseElementModel
 	}
 
 	/**
+	 * Return the file's field layout.
+	 * @return FieldLayoutModel|null
+	 */
+	public function getFieldLayout()
+	{
+		$source = $this->getSource();
+
+		if ($source)
+		{
+			return $source->getFieldLayout();
+		}
+	}
+
+	/**
+	 * Returns whether the current user can edit the element.
+	 *
+	 * @return bool
+	 */
+	public function isEditable()
+	{
+		return craft()->userSession->checkPermission('uploadToAssetSource:'.$this->sourceId);
+	}
+
+	/**
 	 * Returns an <img> tag based on this asset.
 	 *
 	 * @return \Twig_Markup|null
@@ -150,8 +175,7 @@ class AssetFileModel extends BaseElementModel
 		if ($this->kind == 'image')
 		{
 			$img = '<img src="'.$this->url.'" width="'.$this->getWidth().'" height="'.$this->getHeight().'" alt="'.$this->title.'" />';
-			$charset = craft()->templates->getTwig()->getCharset();
-			return new \Twig_Markup($img, $charset);
+			return TemplateHelper::getRaw($img);
 		}
 	}
 
@@ -161,6 +185,14 @@ class AssetFileModel extends BaseElementModel
 	public function getFolder()
 	{
 		return craft()->assets->getFolderById($this->folderId);
+	}
+
+	/**
+	 * @return AssetSourceModel|null
+	 */
+	public function getSource()
+	{
+		return craft()->assetSources->getSourceById($this->sourceId);
 	}
 
 	/**
@@ -217,7 +249,6 @@ class AssetFileModel extends BaseElementModel
 	 */
 	public function getIconUrl($size = 125)
 	{
-
 		if ($this->hasThumb())
 		{
 			return false;
@@ -257,6 +288,14 @@ class AssetFileModel extends BaseElementModel
 	public function getExtension()
 	{
 		return IOHelper::getExtension($this->filename);
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getMimeType()
+	{
+		return IOHelper::getMimeType($this->filename);
 	}
 
 	/**

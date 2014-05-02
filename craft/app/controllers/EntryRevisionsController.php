@@ -11,7 +11,7 @@ namespace Craft;
  * @link      http://buildwithcraft.com
  */
 
-craft()->requirePackage(CraftPackage::PublishPro);
+craft()->requireEdition(Craft::Client);
 
 /**
  *
@@ -51,10 +51,9 @@ class EntryRevisionsController extends BaseController
 		{
 			craft()->userSession->setNotice(Craft::t('Draft saved.'));
 
-			// TODO: Remove for 2.0
 			if (isset($_POST['redirect']) && mb_strpos($_POST['redirect'], '{entryId}') !== false)
 			{
-				Craft::log('The {entryId} token within the ‘redirect’ param on entryRevisions/saveDraft requests has been deprecated. Use {id} instead.', LogLevel::Warning);
+				craft()->deprecator->log('EntryRevisionsController::saveDraft():entryId_redirect', 'The {entryId} token within the ‘redirect’ param on entryRevisions/saveDraft requests has been deprecated. Use {id} instead.');
 				$_POST['redirect'] = str_replace('{entryId}', '{id}', $_POST['redirect']);
 			}
 
@@ -122,10 +121,9 @@ class EntryRevisionsController extends BaseController
 		{
 			craft()->userSession->setNotice(Craft::t('Draft published.'));
 
-			// TODO: Remove for 2.0
 			if (isset($_POST['redirect']) && mb_strpos($_POST['redirect'], '{entryId}') !== false)
 			{
-				Craft::log('The {entryId} token within the ‘redirect’ param on entryRevisions/publishDraft requests has been deprecated. Use {id} instead.', LogLevel::Warning);
+				craft()->deprecator->log('EntryRevisionsController::publishDraft():entryId_redirect', 'The {entryId} token within the ‘redirect’ param on entryRevisions/publishDraft requests has been deprecated. Use {id} instead.');
 				$_POST['redirect'] = str_replace('{entryId}', '{id}', $_POST['redirect']);
 			}
 
@@ -142,7 +140,6 @@ class EntryRevisionsController extends BaseController
 		}
 	}
 
-
 	/**
 	 * Sets the draft model's values from the post data.
 	 *
@@ -155,19 +152,11 @@ class EntryRevisionsController extends BaseController
 		$draft->postDate   = craft()->request->getPost('postDate');
 		$draft->expiryDate = craft()->request->getPost('expiryDate');
 		$draft->enabled    = (bool)craft()->request->getPost('enabled');
+		$draft->authorId   = craft()->request->getPost('author');
 
 		$draft->getContent()->title = craft()->request->getPost('title');
 
-		$fields = craft()->request->getPost('fields');
-		$draft->getContent()->setAttributes($fields);
-
-		if (craft()->hasPackage(CraftPackage::Users))
-		{
-			$draft->authorId = craft()->request->getPost('author');
-		}
-		else
-		{
-			$draft->authorId = craft()->userSession->getUser()->id;
-		}
+		$fieldsLocation = craft()->request->getParam('fieldsLocation', 'fields');
+		$draft->setContentFromPost($fieldsLocation);
 	}
 }

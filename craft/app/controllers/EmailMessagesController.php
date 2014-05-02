@@ -11,7 +11,7 @@ namespace Craft;
  * @link      http://buildwithcraft.com
  */
 
-craft()->requirePackage(CraftPackage::Rebrand);
+craft()->requireEdition(Craft::Client);
 
 /**
  * Handles email message tasks.
@@ -31,7 +31,7 @@ class EmailMessagesController extends BaseController
 		$message->subject = craft()->request->getRequiredPost('subject');
 		$message->body = craft()->request->getRequiredPost('body');
 
-		if (craft()->hasPackage(CraftPackage::Localize))
+		if (craft()->isLocalized())
 		{
 			$message->locale = craft()->request->getPost('locale');
 		}

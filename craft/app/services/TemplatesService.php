@@ -36,8 +36,8 @@ class TemplatesService extends BaseApplicationComponent
 	private $_translations = array();
 
 	private $_hooks;
-
 	private $_textareaMarkers;
+	private $_renderingTemplate;
 
 	/**
 	 * Init
@@ -106,6 +106,43 @@ class TemplatesService extends BaseApplicationComponent
 	}
 
 	/**
+	 * Returns whether a template is currently being rendered.
+	 *
+	 * @return bool
+	 */
+	public function isRendering()
+	{
+		return isset($this->_renderingTemplate);
+	}
+
+	/**
+	 * Returns the template path that is currently being rendered, or the full template if renderString() or renderObjectTemplate() was called.
+	 *
+	 * @return string|null
+	 */
+	public function getRenderingTemplate()
+	{
+		if ($this->isRendering())
+		{
+			if (strncmp($this->_renderingTemplate, 'string:', 7) === 0)
+			{
+				return $this->_renderingTemplate;
+			}
+			else
+			{
+				try
+				{
+					return $this->findTemplate($this->_renderingTemplate);
+				}
+				catch (TemplateLoaderException $e)
+				{
+					return craft()->path->getTemplatesPath().$this->_renderingTemplate;
+				}
+			}
+		}
+	}
+
+	/**
 	 * Renders a template.
 	 *
 	 * @param  string $template The name of the template to load, or a StringTemplate object
@@ -115,7 +152,12 @@ class TemplatesService extends BaseApplicationComponent
 	public function render($template, $variables = array())
 	{
 		$twig = $this->getTwig();
-		return $twig->render($template, $variables);
+
+		$lastRenedringTemplate = $this->_renderingTemplate;
+		$this->_renderingTemplate = $template;
+		$result = $twig->render($template, $variables);
+		$this->_renderingTemplate = $lastRenedringTemplate;
+		return $result;
 	}
 
 	/**
@@ -130,7 +172,12 @@ class TemplatesService extends BaseApplicationComponent
 	{
 		$twig = $this->getTwig();
 		$twigTemplate = $twig->loadTemplate($template);
-		return call_user_func_array(array($twigTemplate, 'get'.$macro), $args);
+
+		$lastRenedringTemplate = $this->_renderingTemplate;
+		$this->_renderingTemplate = $template;
+		$result = call_user_func_array(array($twigTemplate, 'get'.$macro), $args);
+		$this->_renderingTemplate = $lastRenedringTemplate;
+		return $result;
 	}
 
 	/**
@@ -143,7 +190,12 @@ class TemplatesService extends BaseApplicationComponent
 	public function renderString($template, $variables = array())
 	{
 		$stringTemplate = new StringTemplate(md5($template), $template);
-		return $this->render($stringTemplate, $variables);
+
+		$lastRenedringTemplate = $this->_renderingTemplate;
+		$this->_renderingTemplate = 'string:'.$template;
+		$result = $this->render($stringTemplate, $variables);
+		$this->_renderingTemplate = $lastRenedringTemplate;
+		return $result;
 	}
 
 	/**
@@ -155,13 +207,21 @@ class TemplatesService extends BaseApplicationComponent
 	 */
 	public function renderObjectTemplate($template, $object)
 	{
+		// If there are no dynamic tags, just return the template
+		if (strpos($template, '{') === false)
+		{
+			return $template;
+		}
+
 		// Get a Twig instance with the String template loader
 		$twig = $this->getTwig('Twig_Loader_String');
 
 		// Have we already parsed this template?
 		if (!isset($this->_objectTemplates[$template]))
 		{
-			$formattedTemplate = str_replace(array('{', '}'), array('{{object.', '}}'), $template);
+			// Replace shortcut "{var}"s with "{{object.var}}"s, without affecting normal Twig tags
+			$formattedTemplate = preg_replace('/(?<![\{\%])\{(?![\{\%])/', '{{object.', $template);
+			$formattedTemplate = preg_replace('/(?<![\}\%])\}(?![\}\%])/', '}}', $formattedTemplate);
 			$this->_objectTemplates[$template] = $twig->loadTemplate($formattedTemplate);
 		}
 
@@ -173,9 +233,12 @@ class TemplatesService extends BaseApplicationComponent
 		}
 
 		// Render it!
-		$return = $this->_objectTemplates[$template]->render(array(
+		$lastRenedringTemplate = $this->_renderingTemplate;
+		$this->_renderingTemplate = 'string:'.$template;
+		$result = $this->_objectTemplates[$template]->render(array(
 			'object' => $object
 		));
+		$this->_renderingTemplate = $lastRenedringTemplate;
 
 		// Re-enable strict variables
 		if ($strictVariables)
@@ -183,7 +246,7 @@ class TemplatesService extends BaseApplicationComponent
 			$twig->enableStrictVariables();
 		}
 
-		return $return;
+		return $result;
 	}
 
 
@@ -214,11 +277,11 @@ class TemplatesService extends BaseApplicationComponent
 	 *
 	 * @param string    $node
 	 * @param bool|null $first
-	 * @deprecated Deprecated since 1.1
+	 * @deprecated Deprecated in 1.1.
 	 */
 	public function includeHeadNode($node, $first = false)
 	{
-		Craft::log('The craft()->templates->includeHeadNode() method has been deprecated. Use craft()->templates->includeHeadHtml() instead.', LogLevel::Warning);
+		craft()->deprecator->log('TemplatesService::includeHeadNode()', 'TemplatesService::includeHeadNode() has been deprecated. includeHeadHtml() instead.');
 		$this->includeHeadHtml($node, $first);
 	}
 
@@ -227,11 +290,11 @@ class TemplatesService extends BaseApplicationComponent
 	 *
 	 * @param string    $node
 	 * @param bool|null $first
-	 * @deprecated Deprecated since 1.1
+	 * @deprecated Deprecated in 1.1.
 	 */
 	public function includeFootNode($node, $first = false)
 	{
-		Craft::log('The craft()->templates->includeFootNode() method has been deprecated. Use craft()->templates->includeFootHtml() instead.', LogLevel::Warning);
+		craft()->deprecator->log('TemplatesService::includeFootNode()', 'TemplatesService::includeFootNode() has been deprecated. Use includeFootNode() instead.');
 		$this->includeFootHtml($node, $first);
 	}
 
@@ -438,6 +501,20 @@ class TemplatesService extends BaseApplicationComponent
 	 */
 	public function getFootHtml()
 	{
+		if (craft()->isInstalled() && craft()->request->isCpRequest())
+		{
+			// Include any JS/resource flashes
+			foreach (craft()->userSession->getJsResourceFlashes() as $path)
+			{
+				$this->includeJsResource($path);
+			}
+
+			foreach (craft()->userSession->getJsFlashes() as $js)
+			{
+				$this->includeJs($js, true);
+			}
+		}
+
 		// Are there any JS files to include?
 		if (!empty($this->_jsFiles))
 		{
@@ -540,24 +617,37 @@ class TemplatesService extends BaseApplicationComponent
 		// Normalize the template name
 		$name = trim(preg_replace('#/{2,}#', '/', strtr($name, '\\', '/')), '/');
 
+		// Get the latest template base path
+		$templatesPath = craft()->path->getTemplatesPath();
+
+		$key = $templatesPath.':'.$name;
+
 		// Is this template path already cached?
-		if (isset($this->_templatePaths[$name]))
+		if (isset($this->_templatePaths[$key]))
 		{
-			return $this->_templatePaths[$name];
+			return $this->_templatePaths[$key];
 		}
 
 		// Validate the template name
 		$this->_validateTemplateName($name);
 
-		// Check if the template exists in the main templates path
+		// Look for the template in the main templates folder
+		$basePaths = array();
 
-		// Set the view path
-		//  - We need to set this for each template request, in case it was changed to a plugin's template path
-		$basePath = craft()->path->getTemplatesPath();
-
-		if (($path = $this->_findTemplate($basePath.$name)) !== null)
+		// Should we be looking for a localized version of the template?
+		if (craft()->request->isSiteRequest() && IOHelper::folderExists($templatesPath.craft()->language))
 		{
-			return $this->_templatePaths[$name] = $path;
+			$basePaths[] = $templatesPath.craft()->language.'/';
+		}
+
+		$basePaths[] = $templatesPath;
+
+		foreach ($basePaths as $basePath)
+		{
+			if (($path = $this->_findTemplate($basePath.$name)) !== null)
+			{
+				return $this->_templatePaths[$key] = $path;
+			}
 		}
 
 		// Otherwise maybe it's a plugin template?
@@ -569,19 +659,19 @@ class TemplatesService extends BaseApplicationComponent
 			$name = craft()->request->decodePathInfo($name);
 
 			$parts = array_filter(explode('/', $name));
-			$pluginHandle = mb_strtolower(array_shift($parts));
+			$pluginHandle = StringHelper::toLowerCase(array_shift($parts));
 
 			if ($pluginHandle && ($plugin = craft()->plugins->getPlugin($pluginHandle)) !== null)
 			{
 				// Get the template path for the plugin.
-				$basePath = craft()->path->getPluginsPath().mb_strtolower($plugin->getClassHandle()).'/templates/';
+				$basePath = craft()->path->getPluginsPath().StringHelper::toLowerCase($plugin->getClassHandle()).'/templates/';
 
 				// Chop off the plugin segment, since that's already covered by $basePath
 				$tempName = implode('/', $parts);
 
 				if (($path = $this->_findTemplate($basePath.$tempName)) !== null)
 				{
-					return $this->_templatePaths[$name] = $path;
+					return $this->_templatePaths[$key] = $path;
 				}
 			}
 		}
@@ -637,7 +727,7 @@ class TemplatesService extends BaseApplicationComponent
 			if ($otherAttributes)
 			{
 				$idNamespace = $this->formatInputId($namespace);
-				$html = preg_replace('/(?<![\w\-])((id=|for=|data\-target=|data-target-prefix=)(\'|"))([^\'"]+)\3/i', '$1'.$idNamespace.'-$4$3', $html);
+				$html = preg_replace('/(?<![\w\-])((id=|for=|data\-target=|data\-reverse\-target=|data-target-prefix=)(\'|"))([^\'"]+)\3/i', '$1'.$idNamespace.'-$4$3', $html);
 			}
 
 			// Bring back the textarea content
@@ -746,8 +836,9 @@ class TemplatesService extends BaseApplicationComponent
 		if (!isset($this->_twigOptions))
 		{
 			$this->_twigOptions = array(
-				'cache'       => craft()->path->getCompiledTemplatesPath(),
-				'auto_reload' => true,
+				'base_template_class' => 'Craft\BaseTemplate',
+				'cache'               => craft()->path->getCompiledTemplatesPath(),
+				'auto_reload'         => true,
 			);
 
 			if (craft()->config->get('devMode'))
@@ -965,7 +1056,16 @@ class TemplatesService extends BaseApplicationComponent
 			$html .= ' hasicon';
 		}
 
-		$html .= '" data-id="'.$context['element']->id.'" data-url="'.$context['element']->getUrl().'">';
+		$html .= '" data-id="'.$context['element']->id.'" data-locale="'.$context['element']->locale.'" data-status="'.$context['element']->getStatus().'" data-label="'.$context['element'].'" data-url="'.$context['element']->getUrl().'"';
+
+		$isEditable = ElementHelper::isElementEditable($context['element']);
+
+		if ($isEditable)
+		{
+			$html .= ' data-editable="1"';
+		}
+
+		$html .= '>';
 
 		if ($context['context'] == 'field' && isset($context['name']))
 		{
@@ -984,10 +1084,21 @@ class TemplatesService extends BaseApplicationComponent
 
 		$html .= '<div class="label">';
 
-		if (isset($context['elementType']) && $context['elementType']->hasStatuses())
+		if (isset($context['elementType']))
 		{
-			$html .= '<div class="status '.$context['element']->getStatus().'"></div> ';
+			$elementType = $context['elementType'];
 		}
+		else
+		{
+			$elementType = craft()->elements->getElementType($context['element']->getElementType());
+		}
+
+		if ($elementType->hasStatuses())
+		{
+			$html .= '<span class="status '.$context['element']->getStatus().'"></span>';
+		}
+
+		$html .= '<span class="title">';
 
 		if ($context['context'] == 'index' && ($cpEditUrl = $context['element']->getCpEditUrl()))
 		{
@@ -998,7 +1109,7 @@ class TemplatesService extends BaseApplicationComponent
 			$html .= $context['element'];
 		}
 
-		$html .= '</div></div>';
+		$html .= '</span></div></div>';
 
 		return $html;
 	}

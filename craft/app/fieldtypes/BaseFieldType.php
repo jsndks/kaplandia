@@ -85,8 +85,15 @@ abstract class BaseFieldType extends BaseSavableComponentType implements IFieldT
 	 */
 	public function prepValueFromPost($value)
 	{
-		// TODO: Remove redundant prepPostData() in Craft 2.0
-		return $this->prepPostData($value);
+		if (method_exists($this, 'prepPostData'))
+		{
+			craft()->deprecator->log('BaseFieldType::prepPostData()', 'BaseFieldType::prepPostData() has been deprecated. Use prepValueFromPost() instead.');
+			return $this->prepPostData($value);
+		}
+		else
+		{
+			return $value;
+		}
 	}
 
 	/**
@@ -141,28 +148,36 @@ abstract class BaseFieldType extends BaseSavableComponentType implements IFieldT
 	 */
 	public function modifyElementsQuery(DbCommand $query, $value)
 	{
-		if ($this->defineContentAttribute())
+		if ($value !== null)
 		{
-			$handle = $this->model->handle;
-			$query->andWhere(DbHelper::parseParam('content.'.craft()->content->fieldColumnPrefix.$handle, $value, $query->params));
-		}
-		else
-		{
-			return false;
+			if ($this->defineContentAttribute())
+			{
+				$handle = $this->model->handle;
+				$query->andWhere(DbHelper::parseParam('content.'.craft()->content->fieldColumnPrefix.$handle, $value, $query->params));
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 
 	/**
-	 * Preps the post data before it's saved to the database.
+	 * Returns the location in POST that this field's content was pulled from.
 	 *
-	 * @access protected
-	 * @param mixed $value
-	 * @return mixed
-	 * @deprecated Deprecated since 1.1
+	 * @return string|null
 	 */
-	protected function prepPostData($value)
+	protected function getContentPostLocation()
 	{
-		return $value;
+		if (isset($this->element) && isset($this->model))
+		{
+			$elementContentPostLocation = $this->element->getContentPostLocation();
+
+			if ($elementContentPostLocation)
+			{
+				return $elementContentPostLocation.'.'.$this->model->handle;
+			}
+		}
 	}
 
 	/**

@@ -124,6 +124,56 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
+	 * Adds a JS resource flash.
+	 *
+	 * @param string $resource
+	 */
+	public function addJsResourceFlash($resource)
+	{
+		$resources = $this->getJsResourceFlashes(false);
+
+		if (!in_array($resource, $resources))
+		{
+			$resources[] = $resource;
+			$this->setFlash('jsResources', $resources);
+		}
+	}
+
+	/**
+	 * Returns the queued-up JS flashes.
+	 *
+	 * @param bool $delete
+	 * @return array
+	 */
+	public function getJsResourceFlashes($delete = true)
+	{
+		return $this->getFlash('jsResources', array(), $delete);
+	}
+
+	/**
+	 * Adds a JS flash.
+	 *
+	 * @param string $js
+	 */
+	public function addJsFlash($js)
+	{
+		$scripts = $this->getJsFlashes();
+		$scripts[] = $js;
+		$this->setFlash('js', $scripts);
+	}
+
+	/**
+	 * Returns the queued-up JS flashes.
+	 *
+	 * @param bool $delete
+	 * @return array
+	 */
+	public function getJsFlashes($delete = true)
+	{
+		return $this->getFlash('js', array(), $delete);
+	}
+
+	/**
 	 *
 	 * Check to see if the current web user is a guest.
 	 *
@@ -259,7 +309,7 @@ class UserSessionService extends \CWebUser
 		$passwordModel->password = $password;
 
 		// Require a userAgent string and an IP address to help prevent direct socket connections from trying to login.
-		if (!craft()->request->userAgent || !craft()->request->getIpAddress())
+		if (!craft()->request->userAgent || !$_SERVER['REMOTE_ADDR'])
 		{
 			Craft::log('Someone tried to login with loginName: '.$username.', without presenting an IP address or userAgent string.', LogLevel::Warning);
 			$this->logout();
@@ -314,10 +364,20 @@ class UserSessionService extends \CWebUser
 				$id = $this->_identity->getId();
 				$states = $this->_identity->getPersistentStates();
 
+				// Fire an 'onBeforeLogin' event
+				$this->onBeforeLogin(new Event($this, array(
+					'username'      => $usernameModel->username,
+				)));
+
 				// Run any before login logic.
 				if ($this->beforeLogin($id, $states, false))
 				{
 					$this->changeIdentity($id, $this->_identity->getName(), $states);
+
+					// Fire an 'onLogin' event
+					$this->onLogin(new Event($this, array(
+						'username'      => $usernameModel->username,
+					)));
 
 					if ($seconds > 0)
 					{
@@ -367,6 +427,56 @@ class UserSessionService extends \CWebUser
 		}
 
 		Craft::log($username.' tried to log in unsuccessfully.', LogLevel::Warning);
+		return false;
+	}
+
+	/**
+	 * Logs a user in for impersonation.
+	 *
+	 * @param \IUserIdentity $userId
+	 * @throws Exception
+	 * @return bool
+	 */
+	public function impersonate($userId)
+	{
+		$userModel = craft()->users->getUserById($userId);
+
+		if (!$userModel)
+		{
+			throw new Exception(Craft::t('Could not find a user with Id of {userId}.', array('{userId}' => $userId)));
+		}
+
+		$this->_identity = new UserIdentity($userModel->username, null);
+		$this->_identity->logUserIn($userModel);
+
+		$id = $this->_identity->getId();
+		$states = $this->_identity->getPersistentStates();
+
+		// Run any before login logic.
+		if ($this->beforeLogin($id, $states, false))
+		{
+			// Fire an 'onBeforeLogin' event
+			$this->onBeforeLogin(new Event($this, array(
+				'username'      => $userModel->username,
+			)));
+
+			$this->changeIdentity($id, $this->_identity->getName(), $states);
+
+			// Fire an 'onLogin' event
+			$this->onLogin(new Event($this, array(
+				'username'      => $userModel->username,
+			)));
+
+			$this->_sessionRestoredFromCookie = false;
+			$this->_userRow = null;
+
+			// Run any after login logic.
+			$this->afterLogin(false);
+
+			return !$this->getIsGuest();
+		}
+
+		Craft::log($userModel->username.' tried to log in unsuccessfully.', LogLevel::Warning);
 		return false;
 	}
 
@@ -537,6 +647,26 @@ class UserSessionService extends \CWebUser
 				}
 			}
 		}
+	}
+
+	/**
+	 * Fires an 'onBeforeLogin' event.
+	 *
+	 * @param Event $event
+	 */
+	public function onBeforeLogin(Event $event)
+	{
+		$this->raiseEvent('onBeforeLogin', $event);
+	}
+
+	/**
+	 * Fires an 'onLogin' event.
+	 *
+	 * @param Event $event
+	 */
+	public function onLogin(Event $event)
+	{
+		$this->raiseEvent('onLogin', $event);
 	}
 
 	/**
@@ -812,7 +942,7 @@ class UserSessionService extends \CWebUser
 			{
 				$userRow = craft()->db->createCommand()
 				    ->select('*')
-				    ->from('{{users}}')
+				    ->from('users')
 				    ->where('id=:id', array(':id' => $id))
 				    ->queryRow();
 

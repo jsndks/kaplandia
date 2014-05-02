@@ -14,7 +14,7 @@
 	</div>
 
 	{% if sections|length %}
-		<table id="sections" class="data collapsible">
+		<table id="sections" class="data fullwidth collapsible">
 			<thead>
 				<th scope="col">{{ "Name"|t }}</th>
 				<th scope="col">{{ "Handle"|t }}</th>
@@ -29,7 +29,7 @@
 						<th scope="row" data-title="{{ 'Name'|t }}"><a href="{{ url('settings/sections/' ~ section.id) }}">{{ section.name|t }}</a></th>
 						<td data-title="{{ 'Handle'|t }}"><code>{{ section.handle }}</code></td>
 						<td data-title="{{ 'Type'|t }}">{{ section.type|title|t }}</td>
-						<td data-title="{{ 'URL Format'|t }}">
+						<td data-title="{{ 'URL Format'|t }}" dir="ltr">
 							{%- if section.isHomepage() -%}
 								<div data-icon="home" title="{{ 'Homepage'|t }}"></div>
 							{%- else -%}
@@ -39,9 +39,17 @@
 						<td data-title="{{ 'Entry Types'|t }}">
 							{% if section.type == 'single' and section.getEntryTypes()|length == 1 %}
 								{% set entryType = section.getEntryTypes()[0] %}
-								<a href="{{ url('settings/sections/' ~ section.id ~ '/entrytypes/' ~ entryType.id) }}">{{ "Edit entry type"|t }}</a>
+								<a href="{{ entryType.getCpEditUrl() }}">{{ "Edit entry type"|t }}</a>
 							{% else %}
 								<a href="{{ url('settings/sections/' ~ section.id ~ '/entrytypes') }}">{{ "Edit entry types ({count})"|t({ count: section.getEntryTypes()|length }) }}</a>
+								<a class="menubtn" title="{{ 'Entry Types'|t }}"></a>
+								<div class="menu">
+									<ul>
+										{% for entryType in section.getEntryTypes() %}
+											<li><a href="{{ entryType.getCpEditUrl() }}">{{ entryType.name }}</a></li>
+										{% endfor %}
+									</ul>
+								</div>
 							{% endif %}
 						</td>
 						<td class="thin"><a class="delete icon" title="{{ 'Delete'|t }}" role="button"></a></td>
@@ -51,7 +59,7 @@
 		</table>
 	{% endif %}
 
-	<div id="newsectioncontainer" class="buttons{% if not craft.hasPackage('PublishPro') and sections|length >= maxSections %} hidden{% endif %}">
+	<div id="newsectioncontainer" class="buttons{% if CraftEdition == CraftPersonal and sections|length >= maxSections %} hidden{% endif %}">
 		<a href="{{ url('settings/sections/new') }}" class="btn submit add icon">{{ "New Section"|t }}</a>
 	</div>
 {% endset %}
@@ -64,7 +72,7 @@
 		newObjectBtnSelector: '#newsectioncontainer',
 		deleteAction: 'sections/deleteSection',
 		confirmDeleteMessage: '{{ "Are you sure you want to delete “{name}” and all its entries?"|t }}',
-		{% if not craft.hasPackage('PublishPro') %}maxObjects: {{ maxSections }},{% endif %}
+		{% if CraftEdition == CraftPersonal %}maxObjects: {{ maxSections }},{% endif %}
 		onDeleteObject: function()
 		{
 			// Hide the Entries tab if that was the last one

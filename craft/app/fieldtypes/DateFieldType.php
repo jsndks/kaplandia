@@ -23,7 +23,7 @@ class DateFieldType extends BaseFieldType
 	 */
 	public function getName()
 	{
-		return Craft::t('Date');
+		return Craft::t('Date/Time');
 	}
 
 	/**
@@ -45,6 +45,7 @@ class DateFieldType extends BaseFieldType
 	protected function defineSettings()
 	{
 		return array(
+			'showDate' => array(AttributeType::Bool, 'default' => true),
 			'showTime' => AttributeType::Bool,
 		);
 	}
@@ -56,14 +57,39 @@ class DateFieldType extends BaseFieldType
 	 */
 	public function getSettingsHtml()
 	{
-		return craft()->templates->renderMacro('_includes/forms.html', 'checkboxField', array(
-			array(
-				'label' => Craft::t('Show time?'),
-				'id' => 'showTime',
-				'name' => 'showTime',
-				'checked' => $this->getSettings()->showTime,
-			)
-		));
+		// If they are both selected or nothing is selected, the select showBoth.
+		if (($this->getSettings()->showDate && $this->getSettings()->showTime))
+		{
+			$value = 'showBoth';
+		}
+		else if ($this->getSettings()->showDate)
+		{
+			$value = 'showDate';
+		}
+		else if ($this->getSettings()->showTime)
+		{
+			$value = 'showTime';
+		}
+
+		return craft()->templates->renderMacro('_includes/forms.html', 'radioGroupField', array(array(
+			'id' => 'dateTime',
+			'name' => 'dateTime',
+			'options' => array(
+				array(
+					'label' => Craft::t('Show date'),
+					'value' => 'showDate',
+				),
+				array(
+					'label' => Craft::t('Show time'),
+					'value' => 'showTime',
+				),
+				array(
+					'label' => Craft::t('Show date and time'),
+					'value' => 'showBoth',
+				)
+			),
+			'value' => $value,
+		)));
 	}
 
 	/**
@@ -81,7 +107,18 @@ class DateFieldType extends BaseFieldType
 			'value'    => $value
 		);
 
-		$input = craft()->templates->render('_includes/forms/date', $variables);
+		$input = '';
+
+		// In case nothing is selected, default to the date.
+		if (!$this->getSettings()->showDate && !$this->getSettings()->showTime)
+		{
+			$this->getSettings()->showDate = true;
+		}
+
+		if ($this->getSettings()->showDate)
+		{
+			$input .= craft()->templates->render('_includes/forms/date', $variables);
+		}
 
 		if ($this->getSettings()->showTime)
 		{
@@ -92,23 +129,7 @@ class DateFieldType extends BaseFieldType
 	}
 
 	/**
-	 * Returns the input value as it should be saved to the database.
-	 *
-	 * @param mixed $value
-	 * @return mixed
-	 */
-	public function prepValueFromPost($value)
-	{
-		if ($value)
-		{
-			// Ugly? Yes. Yes it is.
-			$timeString = $value->format(DateTime::MYSQL_DATETIME, DateTime::UTC);
-			return DateTime::createFromFormat(DateTime::MYSQL_DATETIME, $timeString, craft()->getTimeZone());
-		}
-	}
-
-	/**
-	 * Convert back to the server's timezone.
+	 * Preps the field value for use.
 	 *
 	 * @param mixed $value
 	 * @return DateTime
@@ -117,7 +138,11 @@ class DateFieldType extends BaseFieldType
 	{
 		if ($value)
 		{
-			return $value->setTimezone(new \DateTimeZone(craft()->getTimeZone()));
+			// Set it to the system timezone
+			$timezone = craft()->getTimeZone();
+			$value->setTimezone(new \DateTimeZone($timezone));
+
+			return $value;
 		}
 	}
 
@@ -130,7 +155,50 @@ class DateFieldType extends BaseFieldType
 	 */
 	public function modifyElementsQuery(DbCommand $query, $value)
 	{
-		$handle = $this->model->handle;
-		$query->andWhere(DbHelper::parseDateParam('content.'.craft()->content->fieldColumnPrefix.$handle, $value, $query->params));
+		if ($value !== null)
+		{
+			$handle = $this->model->handle;
+			$query->andWhere(DbHelper::parseDateParam('content.'.craft()->content->fieldColumnPrefix.$handle, $value, $query->params));
+		}
+	}
+
+	/**
+	 * @param array $settings
+	 * @return array
+	 */
+	public function prepSettings($settings)
+	{
+		if (isset($settings['dateTime']))
+		{
+			switch ($settings['dateTime'])
+			{
+				case 'showBoth':
+				{
+					unset($settings['dateTime']);
+					$settings['showTime'] = true;
+					$settings['showDate'] = true;
+
+					break;
+				}
+				case 'showDate':
+				{
+					unset($settings['dateTime']);
+					$settings['showDate'] = true;
+					$settings['showTime'] = false;
+
+					break;
+				}
+				case 'showTime':
+				{
+					unset($settings['dateTime']);
+					$settings['showTime'] = true;
+					$settings['showDate'] = false;
+
+					break;
+				}
+			}
+		}
+
+		return $settings;
 	}
 }

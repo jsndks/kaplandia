@@ -11,8 +11,8 @@
 (function($) {
 
 
-var AccountSettingForm = Garnish.Base.extend({
-
+var AccountSettingForm = Garnish.Base.extend(
+{
 	$lockBtns: null,
 	$currentPasswordInput: null,
 	$spinner: null,
@@ -29,7 +29,7 @@ var AccountSettingForm = Garnish.Base.extend({
 	{
 		if (!this.modal)
 		{
-			var $form = $('<form id="verifypasswordmodal" class="modal"/>').appendTo(Garnish.$bod),
+			var $form = $('<form id="verifypasswordmodal" class="modal fitted"/>').appendTo(Garnish.$bod),
 				$body = $('<div class="body"><p>'+Craft.t('Please enter your current password.')+'</p></div>').appendTo($form),
 				$passwordWrapper = $('<div class="passwordwrapper"/>').appendTo($body),
 				$buttons = $('<div class="buttons right"/>').appendTo($body),
@@ -80,8 +80,8 @@ var AccountSettingForm = Garnish.Base.extend({
 				password: password
 			};
 
-			Craft.postActionRequest('users/verifyPassword', data, $.proxy(function(response, textStatus) {
-
+			Craft.postActionRequest('users/verifyPassword', data, $.proxy(function(response, textStatus)
+			{
 				this.$spinner.addClass('hidden');
 
 				if (textStatus == 'success')

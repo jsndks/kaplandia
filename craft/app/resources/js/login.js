@@ -10,8 +10,8 @@
 
 (function($) {
 
-var LoginForm = Garnish.Base.extend({
-
+var LoginForm = Garnish.Base.extend(
+{
 	$form: null,
 	$loginNameInput: null,
 	$loginFields: null,
@@ -142,8 +142,8 @@ var LoginForm = Garnish.Base.extend({
 			loginName: this.$loginNameInput.val()
 		};
 
-		Craft.postActionRequest('users/forgotpassword', data, $.proxy(function(response, textStatus) {
-
+		Craft.postActionRequest('users/forgotpassword', data, $.proxy(function(response, textStatus)
+		{
 			if (textStatus == 'success')
 			{
 				if (response.success)
@@ -169,8 +169,8 @@ var LoginForm = Garnish.Base.extend({
 			rememberMe: (this.$rememberMeCheckbox.prop('checked') ? 'y' : '')
 		};
 
-		Craft.postActionRequest('users/login', data, $.proxy(function(response, textStatus) {
-
+		Craft.postActionRequest('users/login', data, $.proxy(function(response, textStatus)
+		{
 			if (textStatus == 'success')
 			{
 				if (response.success)
@@ -242,11 +242,11 @@ var LoginForm = Garnish.Base.extend({
 });
 
 
-var MessageSentModal = Garnish.Modal.extend({
-
+var MessageSentModal = Garnish.Modal.extend(
+{
 	init: function()
 	{
-		var $container = $('<div class="pane email-sent">'+Craft.t('Check your email for instructions to reset your password.')+'</div>')
+		var $container = $('<div class="modal fitted email-sent"><div class="body">'+Craft.t('Check your email for instructions to reset your password.')+'</div></div>')
 			.appendTo(Garnish.$bod);
 
 		this.base($container);
@@ -255,7 +255,6 @@ var MessageSentModal = Garnish.Modal.extend({
 	hide: function()
 	{
 	}
-
 });
 
 

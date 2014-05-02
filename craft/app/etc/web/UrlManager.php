@@ -300,20 +300,16 @@ class UrlManager extends \CUrlManager
 	{
 		if (craft()->request->isCpRequest())
 		{
-			// Merge in any package-specific routes for packages that are actually installed
-			if (isset($this->cpRoutes['pkgRoutes']))
+			// Merge in any edition-specific routes
+			for ($i = 1; $i <= craft()->getEdition(); $i++)
 			{
-				// Merge in the package routes
-				foreach ($this->cpRoutes['pkgRoutes'] as $packageName => $packageRoutes)
+				if (isset($this->cpRoutes['editionRoutes'][$i]))
 				{
-					if (craft()->hasPackage($packageName))
-					{
-						$this->cpRoutes = array_merge($this->cpRoutes, $packageRoutes);
-					}
+					$this->cpRoutes = array_merge($this->cpRoutes, $this->cpRoutes['editionRoutes'][$i]);
 				}
-
-				unset($this->cpRoutes['pkgRoutes']);
 			}
+
+			unset($this->cpRoutes['editionRoutes']);
 
 			if (($route = $this->_matchUrlRoutes($path, $this->cpRoutes)) !== false)
 			{
@@ -334,9 +330,16 @@ class UrlManager extends \CUrlManager
 		else
 		{
 			// Check the user-defined routes
-			$siteRoutes = craft()->routes->getAllRoutes();
+			$configFileRoutes = craft()->routes->getConfigFileRoutes();
 
-			if (($route = $this->_matchUrlRoutes($path, $siteRoutes)) !== false)
+			if (($route = $this->_matchUrlRoutes($path, $configFileRoutes)) !== false)
+			{
+				return $route;
+			}
+
+			$dbRoutes = craft()->routes->getDbRoutes();
+
+			if (($route = $this->_matchUrlRoutes($path, $dbRoutes)) !== false)
 			{
 				return $route;
 			}
@@ -395,7 +398,7 @@ class UrlManager extends \CUrlManager
 	}
 
 	/**
-	 * Returns whether the current path is "public" (no segments that start with underscores).
+	 * Returns whether the current path is "public" (no segments that start with the privateTemplateTrigger).
 	 *
 	 * @access private
 	 * @return bool
@@ -404,9 +407,12 @@ class UrlManager extends \CUrlManager
 	{
 		if (!craft()->request->isAjaxRequest())
 		{
+			$trigger = craft()->config->get('privateTemplateTrigger');
+			$length = strlen($trigger);
+
 			foreach (craft()->request->getSegments() as $requestPathSeg)
 			{
-				if (isset($requestPathSeg[0]) && $requestPathSeg[0] == '_')
+				if (strncmp($requestPathSeg, $trigger, $length) === 0)
 				{
 					return false;
 				}

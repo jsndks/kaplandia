@@ -11,7 +11,7 @@ namespace Craft;
  * @link      http://buildwithcraft.com
  */
 
-craft()->requirePackage(CraftPackage::PublishPro);
+craft()->requireEdition(Craft::Client);
 
 /**
  *
@@ -73,12 +73,25 @@ class EntryRevisionsService extends BaseApplicationComponent
 			$localeId = craft()->i18n->getPrimarySiteLocale();
 		}
 
-		$draftRecords = EntryDraftRecord::model()->findAllByAttributes(array(
-			'entryId' => $entryId,
-			'locale'  => $localeId,
-		));
+		$drafts = array();
 
-		return EntryDraftModel::populateModels($draftRecords);
+		$results = craft()->db->createCommand()
+			->select('*')
+			->from('entrydrafts')
+			->where(array('and', 'entryId = :entryId', 'locale = :locale'), array(':entryId' => $entryId, ':locale' => $localeId))
+			->queryAll();
+
+		foreach ($results as $result)
+		{
+			$result['data'] = JsonHelper::decode($result['data']);
+
+			// Don't initialize the content
+			unset($result['data']['fields']);
+
+			$drafts[] = EntryDraftModel::populateModel($result);
+		}
+
+		return $drafts;
 	}
 
 	/**
@@ -263,22 +276,33 @@ class EntryRevisionsService extends BaseApplicationComponent
 	 * @param int|null $limit
 	 * @return array
 	 */
-	public function getVersionsByEntryId($entryId, $localeId, $limit = -1)
+	public function getVersionsByEntryId($entryId, $localeId, $limit = null)
 	{
 		if (!$localeId)
 		{
 			$localeId = craft()->i18n->getPrimarySiteLocale();
 		}
 
-		$versionRecords = EntryVersionRecord::model()->findAllByAttributes(array(
-			'entryId' => $entryId,
-			'locale'  => $localeId,
-		), array(
-			'limit' => $limit,
-			'order' => 'dateCreated desc'
-		));
+		$versions = array();
 
-		return EntryVersionModel::populateModels($versionRecords, 'versionId');
+		$results = craft()->db->createCommand()
+			->select('*')
+			->from('entryversions')
+			->where(array('and', 'entryId = :entryId', 'locale = :locale'), array(':entryId' => $entryId, ':locale' => $localeId))
+			->limit($limit)
+			->queryAll();
+
+		foreach ($results as $result)
+		{
+			$result['data'] = JsonHelper::decode($result['data']);
+
+			// Don't initialize the content
+			unset($result['data']['fields']);
+
+			$versions[] = EntryVersionModel::populateModel($result);
+		}
+
+		return $versions;
 	}
 
 	/**
@@ -356,7 +380,7 @@ class EntryRevisionsService extends BaseApplicationComponent
 			'fields'     => array(),
 		);
 
-		$content = $revision->getContent()->getAttributes(null, true);
+		$content = $revision->getContentFromPost();
 
 		foreach (craft()->fields->getAllFields() as $field)
 		{

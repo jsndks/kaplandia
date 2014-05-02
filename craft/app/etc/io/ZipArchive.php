@@ -16,7 +16,6 @@ namespace Craft;
  */
 class ZipArchive implements IZip
 {
-
 	/**
 	 * @param $sourceFolder
 	 * @param $destZip

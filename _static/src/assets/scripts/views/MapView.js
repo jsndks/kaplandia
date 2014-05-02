@@ -1,6 +1,10 @@
 define(function(require, exports, module) {
     'use strict';
 
+    require('konamijs');
+    require('handlebars');
+    require('utils/templates');
+
     /**
      * Setup a new mapbox object
      *
@@ -31,6 +35,7 @@ define(function(require, exports, module) {
          */
         this.isEnabled = false;
 
+        // var easter_egg = new Konami(this.init.bind(this));
         this.init();
     }
 
@@ -46,115 +51,7 @@ define(function(require, exports, module) {
      * @private
      */
     proto.init = function() {
-        this.setupHandlers()
-           .createChildren()
-           .layout()
-           .enable();
-
-        return this;
-    };
-
-    /**
-     * Binds the scope of any handler functions.
-     * Should only be run on initialization of the view.
-     *
-     * @method setupHandlers
-     * @returns {mapView}
-     * @private
-     */
-    proto.setupHandlers = function() {
-        // Bind event handlers scope here
-
-        return this;
-    };
-
-    /**
-     * Create any child objects or references to DOM elements.
-     * Should only be run on initialization of the view.
-     *
-     * @method createChildren
-     * @returns {mapView}
-     * @private
-     */
-    proto.createChildren = function() {
-
-        return this;
-    };
-
-    /**
-     * Remove any child objects or references to DOM elements.
-     *
-     * @method removeChildren
-     * @returns {mapView}
-     * @public
-     */
-    proto.removeChildren = function() {
-
-        return this;
-    };
-
-    /**
-     * Performs measurements and applys any positioning style logic.
-     * Should be run anytime the parent layout changes.
-     *
-     * @method layout
-     * @returns {mapView}
-     * @public
-     */
-    proto.layout = function() {
         this.getPinData();
-
-        return this;
-    };
-
-    /**
-     * Enables the component.
-     * Performs any event binding to handlers.
-     * Exits early if it is already enabled.
-     *
-     * @method enable
-     * @returns {mapView}
-     * @public
-     */
-    proto.enable = function() {
-        if (this.isEnabled) {
-            return this;
-        }
-        this.isEnabled = true;
-
-        return this;
-    };
-
-    /**
-     * Disables the component.
-     * Tears down any event binding to handlers.
-     * Exits early if it is already disabled.
-     *
-     * @method disable
-     * @returns {mapView}
-     * @public
-     */
-    proto.disable = function() {
-        if (!this.isEnabled) {
-            return this;
-        }
-        this.isEnabled = false;
-
-        return this;
-    };
-
-    /**
-     * Destroys the component.
-     * Tears down any events, handlers, elements.
-     * Should be called when the object should be left unused.
-     *
-     * @method destroy
-     * @returns {mapView}
-     * @public
-     */
-    proto.destroy = function() {
-        this.disable()
-            .removeChildren();
 
         return this;
     };
@@ -170,19 +67,38 @@ define(function(require, exports, module) {
      * @public
      */
     proto.createMap = function(pinData) {
-        var map = L.mapbox.map('map', 'jdicks.hl51p5gl')
+        var map = L.mapbox.map('map', 'jdicks.hm4han6c')
             // .addControl(L.mapbox.geocoderControl('jdicks.hl51p5gl'))
             .setView([33, -100], 4);
+
+        // Keep our place markers organized in a nice group.
+        var featureLayer = L.mapbox.featureLayer().addTo(map);
 
         // Transform each venue result into a marker on the map.
         var line = [];
         for (var i = 0; i < pinData.length; i++) {
-            var venue = pinData[i];
-            var latlng = L.latLng(venue.lat, venue.lng);
+            var pin = pinData[i];
+            var latlng = L.latLng(pin.lat, pin.lng);
             line.push(latlng);
-            var marker = L.marker(latlng)
-                .bindPopup('<h2>' + venue.title + '</h2>' + '<br />' + '<a href="#">' + venue.post + '</a>')
-                .addTo(map);
+
+            var template = Kap.Templates.popupTemplate;
+            var html = template({
+                title: pin.title,
+                address: pin.address,
+                description: pin.description,
+                posts: pin.posts
+            });
+
+            var myIcon = L.icon({
+                iconUrl: 'assets/media/images/marker.png',
+                iconSize: [43, 52],
+                iconAnchor: [21, 52],
+                popupAnchor: [0, -52]
+            });
+
+            var marker = L.marker(latlng, {icon: myIcon})
+                .bindPopup(html)
+                .addTo(featureLayer);
         }
 
         var polyline_options = {
@@ -190,6 +106,10 @@ define(function(require, exports, module) {
         };
 
         var polyline = L.polyline(line, polyline_options).addTo(map);
+
+        map.fitBounds(featureLayer.getBounds(), {
+            padding: [100, 100]
+        });
     };
 
     /**
@@ -206,20 +126,37 @@ define(function(require, exports, module) {
         for (; i < l; i++) {
             var location = $locations[i];
 
-            var $posts = $(location).find('.posts');
+            var $posts = $(location).find('.posts > li');
             var t = 0;
             var postsLength = $posts.length;
+            var pinPosts = [];
 
-            for (; t < postsLength; t++) {
-                var post = $posts[t];
-                var $post = $(post).find('a').html();
+            if (postsLength != 0) {
+                for (; t < postsLength; t++) {
+                    var post = $posts[t];
+                    var $post = $(post).find('a');
+                    var postData = {
+                        title: $post.text(),
+                        url: $post.attr('href')
+                    };
+                    pinPosts.push(postData);
+                }
             }
+
+            var address = [];
+            var $addressList = $(location).find('.address > li');
+            $addressList.each(function() {
+                var txt = $(this).text();
+                address.push($(this).text());
+            });
 
             var pinData = {
                 title: $(location).data('title'),
+                address: address,
+                description: $(location).data('description'),
                 lat: $(location).data('lat'),
                 lng: $(location).data('lng'),
-                post: $post
+                posts: pinPosts
             };
             this.pinData.push(pinData);
         }
@@ -237,43 +174,6 @@ define(function(require, exports, module) {
     module.exports = mapView;
 
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -188,6 +188,21 @@ class HttpRequestService extends \CHttpRequest
 	}
 
 	/**
+	 * Returns whether this is a Live Preview request.
+	 *
+	 * @return bool
+	 */
+	public function isLivePreview()
+	{
+		return ($this->isSiteRequest() &&
+			($actionSegments = $this->getActionSegments()) &&
+			count($actionSegments) == 2 &&
+			$actionSegments[0] == 'entries' &&
+			$actionSegments[1] == 'previewEntry'
+		);
+	}
+
+	/**
 	 * @return mixed
 	 */
 	public function getMimeType()
@@ -380,6 +395,22 @@ class HttpRequestService extends \CHttpRequest
 		return $this->_browserLanguages;
 	}
 
+	/**
+	 * Returns the host name, without http(s)://
+	 *
+	 * @return string
+	 */
+	public function getHostName()
+	{
+		if (isset($_SERVER['HTTP_HOST']))
+		{
+			return $_SERVER['HTTP_HOST'];
+		}
+		else
+		{
+			return $_SERVER['SERVER_NAME'];
+		}
+	}
 
 	/**
 	 * Sends a file to the user.
@@ -626,28 +657,77 @@ class HttpRequestService extends \CHttpRequest
 	}
 
 	/**
-	 * @return mixed
+	 * Retrieves the best guess of the client's actual IP address taking into account numerous HTTP proxy headers due to variations
+	 * in how different ISPs handle IP addresses in headers between hops.
+	 *
+	 * Considering any of these server vars besides REMOTE_ADDR can be spoofed, this method should not be used when you need a trusted
+	 * source of information for you IP address... use $_SERVER['REMOTE_ADDR'] instead.
 	 */
 	public function getIpAddress()
 	{
 		if ($this->_ipAddress === null)
 		{
-			if (isset($_SERVER['REMOTE_ADDR']) && isset($_SERVER['HTTP_CLIENT_IP']))
+			$ipMatch = false;
+
+			// check for shared internet/ISP IP
+			if (!empty($_SERVER['HTTP_CLIENT_IP']) && $this->_validateIp($_SERVER['HTTP_CLIENT_IP']))
 			{
-				$this->_ipAddress = $_SERVER['HTTP_CLIENT_IP'];
+				$ipMatch = $_SERVER['HTTP_CLIENT_IP'];
 			}
-			else if (isset($_SERVER['REMOTE_ADDR']))
+			else
 			{
-				$this->_ipAddress = $_SERVER['REMOTE_ADDR'];
+				// check for IPs passing through proxies
+				if (!empty($_SERVER['HTTP_X_FORWARDED_FOR']))
+				{
+					// check if multiple ips exist in var
+					$ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+
+					foreach ($ipList as $ip)
+					{
+						if ($this->_validateIp($ip))
+						{
+							$ipMatch = $ip;
+						}
+					}
+				}
 			}
-			else if (isset($_SERVER['HTTP_CLIENT_IP']))
+
+			if (!$ipMatch)
 			{
-				$this->_ipAddress = $_SERVER['HTTP_CLIENT_IP'];
+				if (!empty($_SERVER['HTTP_X_FORWARDED']) && $this->_validateIp($_SERVER['HTTP_X_FORWARDED']))
+				{
+					$ipMatch = $_SERVER['HTTP_X_FORWARDED'];
+				}
+				else
+				{
+					if (!empty($_SERVER['HTTP_X_CLUSTER_CLIENT_IP']) && $this->_validateIp($_SERVER['HTTP_X_CLUSTER_CLIENT_IP']))
+					{
+						$ipMatch = $_SERVER['HTTP_X_CLUSTER_CLIENT_IP'];
+					}
+					else
+					{
+						if (!empty($_SERVER['HTTP_FORWARDED_FOR']) && $this->_validateIp($_SERVER['HTTP_FORWARDED_FOR']))
+						{
+							$ipMatch = $_SERVER['HTTP_FORWARDED_FOR'];
+						}
+						else
+						{
+							if (!empty($_SERVER['HTTP_FORWARDED']) && $this->_validateIp($_SERVER['HTTP_FORWARDED']))
+							{
+								$ipMatch = $_SERVER['HTTP_FORWARDED'];
+							}
+						}
+					}
+				}
+
+				// The only one we're guaranteed to be accurate.
+				if (!$ipMatch)
+				{
+					$ipMatch = $_SERVER['REMOTE_ADDR'];
+				}
 			}
-			else if (isset($_SERVER['HTTP_X_FORWARDED_FOR']))
-			{
-				$this->_ipAddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
-			}
+
+			$this->_ipAddress = $ipMatch;
 		}
 
 		return $this->_ipAddress;
@@ -719,6 +799,38 @@ class HttpRequestService extends \CHttpRequest
 
 		// Sanitize
 		return $this->decodePathInfo($path);
+	}
+
+	/**
+	 * Ends the current HTTP request, without ending script execution.
+	 *
+	 * @param string|null $content
+	 * @see http://stackoverflow.com/a/141026
+	 */
+	public function close($content = '')
+	{
+		// Prevent the script from ending when the browser closes the connection
+		ignore_user_abort(true);
+
+		// Discard any current OB content
+		if (ob_get_length() !== false)
+		{
+			ob_end_clean();
+		}
+
+		// Send the content
+		ob_start();
+		echo $content;
+		$size = ob_get_length();
+
+		// Tell the browser to close the connection
+		header('Connection: close');
+		header('Content-Length: '.$size);
+
+		// Output the content, flush it to the browser, and close out the session
+		ob_end_flush();
+		flush();
+		session_write_close();
 	}
 
 	/**
@@ -871,5 +983,19 @@ class HttpRequestService extends \CHttpRequest
 		}
 
 		return $things;
+	}
+
+	/**
+	 * @param $ip
+	 * @return bool
+	 */
+	private function _validateIp($ip)
+	{
+		if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false)
+		{
+			return false;
+		}
+
+		return true;
 	}
 }

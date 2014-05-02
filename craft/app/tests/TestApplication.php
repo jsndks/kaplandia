@@ -33,6 +33,9 @@ class TestApplication extends WebApp
 		mb_http_output('UTF-8');
 		mb_detect_order('auto');
 
+		// No matter how much you want to delete this line... DONT'T DO IT.
+		Craft::$enableIncludePath = false;
+
 		parent::__construct($config);
 	}
 

@@ -49,23 +49,54 @@
     </li>
 </ul>
 
-<div class="mainContent">
+<ul class="quickLinks js-quickLinks">
+	{% for block in entry.homecontent %}
+		<li><a href="#{{block.quickLink}}">{{ block.quickLink }}</a></li>
+	{% endfor %}
+</ul>
+
+<div class="mainContent mainContent_pad">
     <a href="{{ siteUrl }}" class="logo">
         <img src="{{ siteUrl }}_static/web/assets/media/images/logo.png" alt="" />
     </a>
 
+    {% for block in entry.homecontent %}
+    	<div class="contentBlock" id="{{ block.quickLink }}">
+    		<div class="contentBlock-hd">
+    			<h2 class="hdg hdg_1">{{ block.heading }}</h2>
+    		</div>
+    		<div class="contentBlock-bd">
+    			<p>{{ block.body }}</p>
+    		</div>
+    	</div>
+	{% endfor %}
 
-		<h2 class="hdg hdg_1">{{ entry.title }}</h2>
-	    {{ entry.body }}
-
-		<!--
-		<h2>Recent News</h2>
-		<ul>
-			{% for entry in craft.entries.section('news').limit(5).find() %}
-				<li><a href="{{ entry.url }}">{{ entry.title }}</a></li>
-			{% endfor %}
-		</ul>
-		-->
 
 </div>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

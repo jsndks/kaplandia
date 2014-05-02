@@ -11,7 +11,7 @@ namespace Craft;
  * @link      http://buildwithcraft.com
  */
 
-craft()->requirePackage(CraftPackage::Users);
+craft()->requireEdition(Craft::Pro);
 
 /**
  *
@@ -68,6 +68,9 @@ class UserPermissionsService extends BaseApplicationComponent
 					'registerUsers' => array(
 						'label' => Craft::t('Register users')
 					),
+					'assignUserPermissions' => array(
+						'label' => Craft::t('Assign user groups and permissions')
+					),
 					'administrateUsers' => array(
 						'label' => Craft::t('Administrate users')
 					)
@@ -80,7 +83,7 @@ class UserPermissionsService extends BaseApplicationComponent
 
 		// Locales
 
-		if (craft()->hasPackage(CraftPackage::Localize))
+		if (craft()->isLocalized())
 		{
 			$label = Craft::t('Locales');
 			$locales = craft()->i18n->getSiteLocales();
@@ -112,13 +115,23 @@ class UserPermissionsService extends BaseApplicationComponent
 			$permissions[Craft::t('Global Sets')] = $this->_getGlobalSetPermissions($globalSets);
 		}
 
+		// Categories
+
+		$categoryGroups = craft()->categories->getAllGroups();
+
+		if ($categoryGroups)
+		{
+			$permissions[Craft::t('Categories')] = $this->_getCategoryGroupPermissions($categoryGroups);
+		}
+
 		// Asset sources
 
 		$assetSources = craft()->assetSources->getAllSources();
 
-		if ($assetSources)
+		foreach ($assetSources as $source)
 		{
-			$permissions[Craft::t('Asset Sources')] = $this->_getAssetSourcePermissions($assetSources);
+			$label = Craft::t('Asset Source - {source}', array('source' => Craft::t($source->name)));
+			$permissions[$label] = $this->_getAssetSourcePermissions($source->id);
 		}
 
 		// Plugins
@@ -182,7 +195,7 @@ class UserPermissionsService extends BaseApplicationComponent
 	public function doesGroupHavePermission($groupId, $checkPermission)
 	{
 		$allPermissions = $this->getPermissionsByGroupId($groupId);
-		$checkPermission = mb_strtolower($checkPermission);
+		$checkPermission = StringHelper::toLowerCase($checkPermission);
 
 		return in_array($checkPermission, $allPermissions);
 	}
@@ -255,7 +268,7 @@ class UserPermissionsService extends BaseApplicationComponent
 	public function doesUserHavePermission($userId, $checkPermission)
 	{
 		$allPermissions = $this->getPermissionsByUserId($userId);
-		$checkPermission = mb_strtolower($checkPermission);
+		$checkPermission = StringHelper::toLowerCase($checkPermission);
 
 		return in_array($checkPermission, $allPermissions);
 	}
@@ -320,36 +333,28 @@ class UserPermissionsService extends BaseApplicationComponent
 			"deleteEntries{$suffix}" => array(
 				'label' => Craft::t('Delete entries')
 			),
-
-
 		);
 
-		if (craft()->hasPackage(CraftPackage::Users))
-		{
-			$permissions["editEntries{$suffix}"]['nested']["editPeerEntries{$suffix}"] = array(
-				'label' => Craft::t('Edit other authors’ entries'),
-				'nested' => array(
-					"deletePeerEntries{$suffix}" => array(
-						'label' => Craft::t('Delete other authors’ entries')
-					),
-				)
-			);
+		$permissions["editEntries{$suffix}"]['nested']["editPeerEntries{$suffix}"] = array(
+			'label' => Craft::t('Edit other authors’ entries'),
+			'nested' => array(
+				"deletePeerEntries{$suffix}" => array(
+					'label' => Craft::t('Delete other authors’ entries')
+				),
+			)
+		);
 
-			if (craft()->hasPackage(CraftPackage::PublishPro))
-			{
-				$permissions["editEntries{$suffix}"]['nested']["editPeerEntries{$suffix}"]['nested']["editPeerEntryDrafts{$suffix}"] = array(
-					'label' => Craft::t('Edit other authors’ drafts'),
-					'nested' => array(
-						"publishPeerEntryDrafts{$suffix}" => array(
-							'label' => Craft::t('Publish other authors’ drafts')
-						),
-						"deletePeerEntryDrafts{$suffix}" => array(
-							'label' => Craft::t('Delete other authors’ drafts')
-						),
-					)
-				);
-			}
-		}
+		$permissions["editEntries{$suffix}"]['nested']["editPeerEntries{$suffix}"]['nested']["editPeerEntryDrafts{$suffix}"] = array(
+			'label' => Craft::t('Edit other authors’ drafts'),
+			'nested' => array(
+				"publishPeerEntryDrafts{$suffix}" => array(
+					'label' => Craft::t('Publish other authors’ drafts')
+				),
+				"deletePeerEntryDrafts{$suffix}" => array(
+					'label' => Craft::t('Delete other authors’ drafts')
+				),
+			)
+		);
 
 		return $permissions;
 	}
@@ -376,24 +381,53 @@ class UserPermissionsService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Returns the array source permissions.
+	 * Returns the category permissions.
 	 *
 	 * @access private
-	 * @param array $assetSources
+	 * @param array $globalSets
 	 * @return array
 	 */
-	private function _getAssetSourcePermissions($assetSources)
+	private function _getCategoryGroupPermissions($groups)
 	{
 		$permissions = array();
 
-		foreach ($assetSources as $source)
+		foreach ($groups as $group)
 		{
-			$permissions['viewAssetSource:'.$source->id] = array(
-				'label' => Craft::t('View source “{title}”', array('title' => $source->name))
+			$permissions['editCategories:'.$group->id] = array(
+				'label' => Craft::t('Edit “{title}”', array('title' => $group->name))
 			);
 		}
 
 		return $permissions;
+	}
+
+	/**
+	 * Returns the array source permissions.
+	 *
+	 * @access private
+	 * @param int $sourceId
+	 * @return array
+	 */
+	private function _getAssetSourcePermissions($sourceId)
+	{
+		$suffix = ':'.$sourceId;
+
+		return array(
+			"viewAssetSource{$suffix}" => array(
+				'label' => Craft::t('View source'),
+				'nested' => array(
+					"uploadToAssetSource{$suffix}" => array(
+						'label' => Craft::t('Upload files'),
+					),
+					"createSubfoldersInAssetSource{$suffix}" => array(
+						'label' => Craft::t('Create subfolders'),
+					),
+					"removeFromAssetSource{$suffix}" => array(
+						'label' => Craft::t('Remove files'),
+					)
+				)
+			)
+		);
 	}
 
 	/**
@@ -452,7 +486,7 @@ class UserPermissionsService extends BaseApplicationComponent
 	private function _getPermissionRecordByName($permissionName)
 	{
 		// Permission names are always stored in lowercase
-		$permissionName = mb_strtolower($permissionName);
+		$permissionName = StringHelper::toLowerCase($permissionName);
 
 		$permissionRecord = UserPermissionRecord::model()->findByAttributes(array(
 			'name' => $permissionName

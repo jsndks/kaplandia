@@ -11,8 +11,8 @@
 (function($) {
 
 
-var EmailMessages = Garnish.Base.extend({
-
+var EmailMessages = Garnish.Base.extend(
+{
 	messages: null,
 
 	init: function()
@@ -32,8 +32,8 @@ var EmailMessages = Garnish.Base.extend({
 });
 
 
-var Message = Garnish.Base.extend({
-
+var Message = Garnish.Base.extend(
+{
 	$container: null,
 	key: null,
 	$subject: null,
@@ -74,8 +74,8 @@ var Message = Garnish.Base.extend({
 });
 
 
-var MessageSettingsModal = Garnish.Modal.extend({
-
+var MessageSettingsModal = Garnish.Modal.extend(
+{
 	message: null,
 
 	$localeSelect: null,
@@ -91,7 +91,10 @@ var MessageSettingsModal = Garnish.Modal.extend({
 	{
 		this.message = message;
 
-		this.base();
+		this.base(null, {
+			resizable: true
+		});
+
 		this.loadContainer();
 	},
 
@@ -108,7 +111,7 @@ var MessageSettingsModal = Garnish.Modal.extend({
 			{
 				if (!this.$container)
 				{
-					var $container = $('<form class="modal message-settings" accept-charset="UTF-8">'+response+'</form>').appendTo(Garnish.$bod);
+					var $container = $('<form class="modal fitted message-settings" accept-charset="UTF-8">'+response+'</form>').appendTo(Garnish.$bod);
 					this.setContainer($container);
 					this.show();
 				}
@@ -153,7 +156,7 @@ var MessageSettingsModal = Garnish.Modal.extend({
 
 		var data = {
 			key:     this.message.key,
-			locale:  (this.$localeSelect.length ? this.$localeSelect.val() : Craft.language),
+			locale:  (this.$localeSelect.length ? this.$localeSelect.val() : Craft.locale),
 			subject: this.$subjectInput.val(),
 			body:    this.$bodyInput.val()
 		};
@@ -177,8 +180,8 @@ var MessageSettingsModal = Garnish.Modal.extend({
 		this.$saveBtn.addClass('active');
 		this.$spinner.show();
 
-		Craft.postActionRequest('emailMessages/saveMessage', data, $.proxy(function(response, textStatus) {
-
+		Craft.postActionRequest('emailMessages/saveMessage', data, $.proxy(function(response, textStatus)
+		{
 			this.$saveBtn.removeClass('active');
 			this.$spinner.hide();
 			this.loading = false;
@@ -188,7 +191,7 @@ var MessageSettingsModal = Garnish.Modal.extend({
 				if (response.success)
 				{
 					// Only update the page if we're editing the app target locale
-					if (data.locale == Craft.language)
+					if (data.locale == Craft.locale)
 					{
 						this.message.updateHtmlFromModal();
 					}

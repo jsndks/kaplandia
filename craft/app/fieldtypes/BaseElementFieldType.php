@@ -41,6 +41,18 @@ abstract class BaseElementFieldType extends BaseFieldType
 	protected $allowLimit = true;
 
 	/**
+	 * Template to use for field rendering
+	 * @var string
+	 */
+	protected $inputTemplate = '_includes/forms/elementSelect';
+
+	/**
+	 * @access protected
+	 * @var bool $sortable Whether the elements have a custom sort order.
+	 */
+	protected $sortable = true;
+
+	/**
 	 * Returns the type of field this is.
 	 *
 	 * @return string
@@ -77,6 +89,8 @@ abstract class BaseElementFieldType extends BaseFieldType
 			$settings['source'] = AttributeType::String;
 		}
 
+		$settings['targetLocale'] = AttributeType::String;
+
 		if ($this->allowLimit)
 		{
 			$settings['limit'] = array(AttributeType::Number, 'min' => 0);
@@ -106,9 +120,44 @@ abstract class BaseElementFieldType extends BaseFieldType
 			'allowMultipleSources' => $this->allowMultipleSources,
 			'allowLimit'           => $this->allowLimit,
 			'sources'              => $sources,
+			'targetLocaleField'    => $this->getTargetLocaleFieldHtml(),
 			'settings'             => $this->getSettings(),
 			'type'                 => $this->getName()
 		));
+	}
+
+	/**
+	 * Validates the value beyond the checks that were assumed based on the content attribute.
+	 *
+	 * Returns 'true' or any custom validation errors.
+	 *
+	 * @param array $value
+	 * @return true|string|array
+	 */
+	public function validate($value)
+	{
+		$errors = array();
+
+		if ($this->allowLimit && ($limit = $this->getSettings()->limit) && is_array($value) && count($value) > $limit)
+		{
+			if ($limit == 1)
+			{
+				$errors[] = Craft::t('There can’t be more than one selection.');
+			}
+			else
+			{
+				$errors[] = Craft::t('There can’t be more than {limit} selections.', array('limit' => $limit));
+			}
+		}
+
+		if ($errors)
+		{
+			return $errors;
+		}
+		else
+		{
+			return true;
+		}
 	}
 
 	/**
@@ -120,6 +169,7 @@ abstract class BaseElementFieldType extends BaseFieldType
 	public function prepValue($value)
 	{
 		$criteria = craft()->elements->getCriteria($this->elementType);
+		$criteria->locale = $this->getTargetLocale();
 
 		// $value will be an array of element IDs if there was a validation error
 		// or we're loading a draft/version.
@@ -134,8 +184,16 @@ abstract class BaseElementFieldType extends BaseFieldType
 		}
 		else if (isset($this->element) && $this->element->id)
 		{
-			$criteria->relatedTo = array('sourceElement' => $this->element->id, 'field' => $this->model->id);
-			$criteria->order = 'sortOrder';
+			$criteria->relatedTo = array(
+				'sourceElement' => $this->element->id,
+				'sourceLocale'  => $this->element->locale,
+				'field'         => $this->model->id
+			);
+
+			if ($this->sortable)
+			{
+				$criteria->order = 'sortOrder';
+			}
 		}
 		else
 		{
@@ -163,43 +221,8 @@ abstract class BaseElementFieldType extends BaseFieldType
 	 */
 	public function getInputHtml($name, $criteria)
 	{
-		if (!($criteria instanceof ElementCriteriaModel))
-		{
-			$criteria = craft()->elements->getCriteria($this->elementType);
-			$criteria->id = false;
-		}
-
-		$criteria->status = null;
-		$selectionCriteria = array('status' => null);
-		$disabledElementIds = array();
-
-		if (!empty($this->element->id))
-		{
-			$disabledElementIds[] = $this->element->id;
-		}
-
-		if ($this->allowMultipleSources)
-		{
-			$sources = $this->getSettings()->sources;
-		}
-		else
-		{
-			$sources = array($this->getSettings()->source);
-		}
-
-		return craft()->templates->render('_includes/forms/elementSelect', array(
-			'jsClass'            => $this->inputJsClass,
-			'elementType'        => new ElementTypeVariable($this->getElementType()),
-			'id'                 => craft()->templates->formatInputId($name),
-			'storageKey'         => 'field.'.$this->model->id,
-			'name'               => $name,
-			'elements'           => $criteria,
-			'sources'            => $sources,
-			'criteria'           => $selectionCriteria,
-			'disabledElementIds' => $disabledElementIds,
-			'limit'              => ($this->allowLimit ? $this->getSettings()->limit : null),
-			'addButtonLabel'     => $this->getAddButtonLabel(),
-		));
+		$variables = $this->getInputTemplateVariables($name, $criteria);
+		return craft()->templates->render($this->inputTemplate, $variables);
 	}
 
 	/**
@@ -227,12 +250,11 @@ abstract class BaseElementFieldType extends BaseFieldType
 	 */
 	public function onAfterElementSave()
 	{
-		$rawValue = $this->element->getContent()->getAttribute($this->model->handle);
+		$targetIds = $this->element->getContent()->getAttribute($this->model->handle);
 
-		if ($rawValue !== null)
+		if ($targetIds !== null)
 		{
-			$elementIds = is_array($rawValue) ? array_filter($rawValue) : array();
-			craft()->relations->saveRelations($this->model->id, $this->element->id, $elementIds);
+			craft()->relations->saveRelations($this->model, $this->element, $targetIds);
 		}
 	}
 
@@ -245,7 +267,7 @@ abstract class BaseElementFieldType extends BaseFieldType
 	protected function getAddButtonLabel()
 	{
 		return Craft::t('Add {type}', array(
-			'type' => mb_strtolower($this->getElementType()->getClassHandle())
+			'type' => StringHelper::toLowerCase($this->getElementType()->getClassHandle())
 		));
 	}
 
@@ -266,5 +288,134 @@ abstract class BaseElementFieldType extends BaseFieldType
 		}
 
 		return $elementType;
+	}
+
+	/**
+	 * Returns an array of variables that should be passed to the input template.
+	 *
+	 * @access protected
+	 * @param string $name
+	 * @param mixed  $criteria
+	 * @return array
+	 */
+	protected function getInputTemplateVariables($name, $criteria)
+	{
+		$settings = $this->getSettings();
+
+		if (!($criteria instanceof ElementCriteriaModel))
+		{
+			$criteria = craft()->elements->getCriteria($this->elementType);
+			$criteria->id = false;
+		}
+
+		$criteria->status = null;
+		$criteria->localeEnabled = null;
+
+		$selectionCriteria = $this->getInputSelectionCriteria();
+		$selectionCriteria['localeEnabled'] = null;
+		$selectionCriteria['locale'] = $this->getTargetLocale();
+
+		return array(
+			'jsClass'            => $this->inputJsClass,
+			'elementType'        => new ElementTypeVariable($this->getElementType()),
+			'id'                 => craft()->templates->formatInputId($name),
+			'fieldId'            => $this->model->id,
+			'storageKey'         => 'field.'.$this->model->id,
+			'name'               => $name,
+			'elements'           => $criteria,
+			'sources'            => $this->getInputSources(),
+			'criteria'           => $selectionCriteria,
+			'sourceElementId'    => (isset($this->element->id) ? $this->element->id : null),
+			'limit'              => ($this->allowLimit ? $settings->limit : null),
+			'addButtonLabel'     => $this->getAddButtonLabel(),
+		);
+	}
+
+	/**
+	 * Returns an array of the source keys the field should be able to select elements from.
+	 *
+	 * @access protected
+	 * @return array
+	 */
+	protected function getInputSources()
+	{
+		if ($this->allowMultipleSources)
+		{
+			$sources = $this->getSettings()->sources;
+		}
+		else
+		{
+			$sources = array($this->getSettings()->source);
+		}
+
+		return $sources;
+	}
+
+	/**
+	 * Returns any additional criteria parameters limiting which elements the field should be able to select.
+	 *
+	 * @access protected
+	 * @return array
+	 */
+	protected function getInputSelectionCriteria()
+	{
+		return array();
+	}
+
+	/**
+	 * Returns the locale that target elements should have.
+	 *
+	 * @access protected
+	 * @return string
+	 */
+	protected function getTargetLocale()
+	{
+		if (craft()->isLocalized())
+		{
+			$targetLocale = $this->getSettings()->targetLocale;
+
+			if ($targetLocale)
+			{
+				return $targetLocale;
+			}
+			else if (isset($this->element))
+			{
+				return $this->element->locale;
+			}
+		}
+
+		return craft()->getLanguage();
+	}
+
+	/**
+	 * Returns the HTML for the Target Locale setting.
+	 *
+	 * @access protected
+	 * @return string|null
+	 */
+	protected function getTargetLocaleFieldHtml()
+	{
+		if (craft()->isLocalized() && $this->getElementType()->isLocalized())
+		{
+			$localeOptions = array(
+				array('label' => Craft::t('Same as source'), 'value' => null)
+			);
+
+			foreach (craft()->i18n->getSiteLocales() as $locale)
+			{
+				$localeOptions[] = array('label' => $locale->getName(), 'value' => $locale->getId());
+			}
+
+			return craft()->templates->renderMacro('_includes/forms', 'selectField', array(
+				array(
+					'label' => Craft::t('Target Locale'),
+					'instructions' => Craft::t('Which locale do you want to select {type} in?', array('type' => StringHelper::toLowerCase($this->getName()))),
+					'id' => 'targetLocale',
+					'name' => 'targetLocale',
+					'options' => $localeOptions,
+					'value' => $this->getSettings()->targetLocale
+				)
+			));
+		}
 	}
 }

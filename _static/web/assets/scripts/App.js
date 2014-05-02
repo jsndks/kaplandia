@@ -6,6 +6,7 @@ define(function(require, exports, module) { // jshint ignore:line
     var LogUtil = require('./utils/LogUtil');
     var RaysView = require('./views/RaysView');
     var MapView = require('views/Mapview');
+    var ScrollToView = require('views/ScrollToView');
 
     /**
      * Initial application setup. Runs once upon every page load.
@@ -30,6 +31,7 @@ define(function(require, exports, module) { // jshint ignore:line
         this.parallaxCloudView = new ParallaxView($('.js-cloudScene'));
         this.raysView = new RaysView($('#js-rays'));
         this.mapView = new MapView($('#map'));
+        this.scrollToView = new ScrollToView($('.js-quickLinks'));
     };
 
     module.exports = App;
