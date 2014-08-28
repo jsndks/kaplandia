@@ -2,30 +2,47 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Migration utility methods.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Migration utility methods.
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.helpers
+ * @since     1.1
  */
 class MigrationHelper
 {
+	// Properties
+	// =========================================================================
+
+	/**
+	 * @var
+	 */
 	private static $_tables;
+
+	/**
+	 * @var
+	 */
 	private static $_tablePrefixLength;
 
+	/**
+	 * @var array
+	 */
 	private static $_idColumnType = array('column' => ColumnType::Int, 'required' => true);
+
+	/**
+	 * @var string
+	 */
 	private static $_fkRefActions = 'RESTRICT|CASCADE|NO ACTION|SET DEFAULT|SET NULL';
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Refreshes our record of everything.
 	 *
-	 * @static
+	 * @return null
 	 */
 	public static function refresh()
 	{
@@ -36,9 +53,10 @@ class MigrationHelper
 	/**
 	 * Drops a foreign key if it exists.
 	 *
-	 * @static
 	 * @param string $tableName
-	 * @param array $columns
+	 * @param array  $columns
+	 *
+	 * @return null
 	 */
 	public static function dropForeignKeyIfExists($tableName, $columns)
 	{
@@ -58,10 +76,11 @@ class MigrationHelper
 	/**
 	 * Drops an index if it exists.
 	 *
-	 * @static
 	 * @param string $tableName
-	 * @param array $columns
-	 * @param bool $unique
+	 * @param array  $columns
+	 * @param bool   $unique
+	 *
+	 * @return false
 	 */
 	public static function dropIndexIfExists($tableName, $columns, $unique = false)
 	{
@@ -79,12 +98,12 @@ class MigrationHelper
 	}
 
 	/**
-	 * Renames a table, while also updating its index and FK names,
-	 * as well as any other FK names pointing to the table.
+	 * Renames a table, while also updating its index and FK names, as well as any other FK names pointing to the table.
 	 *
-	 * @static
 	 * @param string $oldName
 	 * @param string $newName
+	 *
+	 * @return false
 	 */
 	public static function renameTable($oldName, $newName)
 	{
@@ -122,10 +141,11 @@ class MigrationHelper
 	/**
 	 * Renames a column, while also updating any index and FK names that use the column.
 	 *
-	 * @static
 	 * @param string $tableName
 	 * @param string $oldName
 	 * @param string $newName
+	 *
+	 * @return null
 	 */
 	public static function renameColumn($tableName, $oldName, $newName)
 	{
@@ -202,16 +222,17 @@ class MigrationHelper
 	}
 
 	/**
-	 * Creates elements for all rows in a given table, swaps its 'id' PK for 'elementId',
-	 * and updates the names of any FK's in other tables.
+	 * Creates elements for all rows in a given table, swaps its 'id' PK for 'elementId', and updates the names of any
+	 * FK's in other tables.
 	 *
-	 * @static
 	 * @param string     $table       The existing table name used to store records of this element.
 	 * @param string     $elementType The element type handle (e.g. "Entry", "Asset", etc.).
 	 * @param bool       $hasContent  Whether this element type has content.
 	 * @param bool       $isLocalized Whether this element type stores data in multiple locales.
-	 * @param array|null $locales     Which locales the elements should store content in.
-	 *                                Defaults to the primary site locale if the element type is not localized, otherwise all locales.
+	 * @param array|null $locales     Which locales the elements should store content in. Defaults to the primary site
+	 *                                locale if the element type is not localized, otherwise all locales.
+	 *
+	 * @return null
 	 */
 	public static function makeElemental($table, $elementType, $hasContent = false, $isLocalized = false, $locales = null)
 	{
@@ -319,11 +340,12 @@ class MigrationHelper
 		}
 	}
 
+	// Private Methods
+	// =========================================================================
+
 	/**
 	 * Returns info about all of the tables.
 	 *
-	 * @static
-	 * @access private
 	 * @return array
 	 */
 	private static function _getTables()
@@ -339,9 +361,8 @@ class MigrationHelper
 	/**
 	 * Returns info about a given table.
 	 *
-	 * @static
-	 * @access private
 	 * @param string $table
+	 *
 	 * @return object|null
 	 */
 	private static function _getTable($table)
@@ -357,9 +378,8 @@ class MigrationHelper
 	/**
 	 * Returns a list of all the foreign keys that point to a given table.
 	 *
-	 * @static
-	 * @access private
 	 * @param string $table
+	 *
 	 * @return array
 	 */
 	private static function _findForeignKeysToTable($table)
@@ -400,8 +420,6 @@ class MigrationHelper
 	/**
 	 * Returns the length of the table prefix.
 	 *
-	 * @static
-	 * @access private
 	 * @return string
 	 */
 	private static function _getTablePrefixLength()
@@ -417,8 +435,7 @@ class MigrationHelper
 	/**
 	 * Records all the foreign keys and indexes for each table.
 	 *
-	 * @static
-	 * @access private
+	 * @return null
 	 */
 	private static function _analyzeTables()
 	{
@@ -436,9 +453,9 @@ class MigrationHelper
 	/**
 	 * Records all the foreign keys and indexes for a given table.
 	 *
-	 * @static
-	 * @access private
 	 * @param string $table
+	 *
+	 * @return null
 	 */
 	private static function _analyzeTable($table)
 	{
@@ -501,38 +518,11 @@ class MigrationHelper
 	}
 
 	/**
-	 * Returns all of the tables that have foreign keys to a given table and column.
-	 *
-	 * @static
-	 * @access private
-	 * @param string $table
-	 * @param string $column
-	 * @return array
-	 */
-	private static function _getTablesWithForeignKeysTo($table, $column = 'id')
-	{
-		$tables = array();
-
-		foreach (static::_getTables() as $table)
-		{
-			foreach ($table->fks as $fk)
-			{
-				if ($fk->refTable == $table && in_array($column, $fk->refColumns))
-				{
-					$fkTables[] = $table;
-				}
-			}
-		}
-
-		return $tables;
-	}
-
-	/**
 	 * Drops all the foreign keys on a table.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $table
+	 *
+	 * @return null
 	 */
 	private static function _dropAllForeignKeysOnTable($table)
 	{
@@ -545,9 +535,9 @@ class MigrationHelper
 	/**
 	 * Drops a foreign key.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $fk
+	 *
+	 * @return null
 	 */
 	private static function _dropForeignKey($fk)
 	{
@@ -558,9 +548,9 @@ class MigrationHelper
 	/**
 	 * Drops all the indexes on a table.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $table
+	 *
+	 * @return null
 	 */
 	private static function _dropAllIndexesOnTable($table)
 	{
@@ -573,9 +563,9 @@ class MigrationHelper
 	/**
 	 * Drops all the unique indexes on a table.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $table
+	 *
+	 * @return null
 	 */
 	private static function _dropAllUniqueIndexesOnTable($table)
 	{
@@ -591,9 +581,9 @@ class MigrationHelper
 	/**
 	 * Drops an index.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $index
+	 *
+	 * @return null
 	 */
 	private static function _dropIndex($index)
 	{
@@ -604,9 +594,9 @@ class MigrationHelper
 	/**
 	 * Restores all the indexes on a table.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $table
+	 *
+	 * @return null
 	 */
 	private static function _restoreAllIndexesOnTable($table)
 	{
@@ -619,9 +609,9 @@ class MigrationHelper
 	/**
 	 * Restores all the unique indexes on a table.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $table
+	 *
+	 * @return null
 	 */
 	private static function _restoreAllUniqueIndexesOnTable($table)
 	{
@@ -637,9 +627,9 @@ class MigrationHelper
 	/**
 	 * Restores an index.
 	 *
-	 * @static
-	 * @access private
-	 * @param object $fk
+	 * @param $index
+	 *
+	 * @return null
 	 */
 	private static function _restoreIndex($index)
 	{
@@ -652,9 +642,9 @@ class MigrationHelper
 	/**
 	 * Restores all the foreign keys on a table.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $table
+	 *
+	 * @return null
 	 */
 	private static function _restoreAllForeignKeysOnTable($table)
 	{
@@ -667,9 +657,9 @@ class MigrationHelper
 	/**
 	 * Restores a foreign key.
 	 *
-	 * @static
-	 * @access private
 	 * @param object $fk
+	 *
+	 * @return null
 	 */
 	private static function _restoreForeignKey($fk)
 	{

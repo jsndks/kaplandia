@@ -2,22 +2,27 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * The AssetSourcesController class is a controller that handles various actions related to asset sources, such as
+ * creating, editing, renaming and reordering them.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * Note that all actions in the controller require an authenticated Craft session via {@link BaseController::allowAnonymous}.
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Handles asset source tasks
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.controllers
+ * @since     1.0
  */
 class AssetSourcesController extends BaseController
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * Shows the asset source list.
+	 *
+	 * @return null
 	 */
 	public function actionSourceIndex()
 	{
@@ -31,7 +36,9 @@ class AssetSourcesController extends BaseController
 	 * Edit an asset source.
 	 *
 	 * @param array $variables
+	 *
 	 * @throws HttpException
+	 * @return null
 	 */
 	public function actionEditSource(array $variables = array())
 	{
@@ -93,6 +100,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Saves an asset source.
+	 *
+	 * @return null
 	 */
 	public function actionSaveSource()
 	{
@@ -152,6 +161,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Reorders asset sources.
+	 *
+	 * @return null
 	 */
 	public function actionReorderSources()
 	{
@@ -167,6 +178,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Deletes an asset source.
+	 *
+	 * @return null
 	 */
 	public function actionDeleteSource()
 	{
@@ -183,6 +196,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Get Amazon S3 buckets.
+	 *
+	 * @return null
 	 */
 	public function actionGetS3Buckets()
 	{
@@ -204,6 +219,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Get Rackspace regions.
+	 *
+	 * @return null
 	 */
 	public function actionGetRackspaceRegions()
 	{
@@ -215,8 +232,8 @@ class AssetSourcesController extends BaseController
 
 		try
 		{
-			// Static methods here are no-go (without passing unneeded variables around, such as location), we'll
-			// have to mock up a SourceType object here.
+			// Static methods here are no-go (without passing unneeded variables around, such as location), we'll have
+			// to mock up a SourceType object here.
 			$model = new AssetSourceModel(array('type' => 'Rackspace', 'settings' => array('username' => $username, 'apiKey' => $apiKey)));
 
 			/** @var RackspaceAssetSourceType $source */
@@ -231,6 +248,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Get Rackspace containers.
+	 *
+	 * @return null
 	 */
 	public function actionGetRackspaceContainers()
 	{
@@ -243,8 +262,8 @@ class AssetSourcesController extends BaseController
 
 		try
 		{
-			// Static methods here are no-go (without passing unneeded variables around, such as location), we'll
-			// have to mock up a SourceType object here.
+			// Static methods here are no-go (without passing unneeded variables around, such as location), we'll have
+			// to mock up a SourceType object here.
 			$model = new AssetSourceModel(array('type' => 'Rackspace', 'settings' => array('username' => $username, 'apiKey' => $apiKey, 'region' => $region)));
 
 			/** @var RackspaceAssetSourceType $source */
@@ -259,6 +278,8 @@ class AssetSourcesController extends BaseController
 
 	/**
 	 * Get Google Cloud Storage buckets.
+	 *
+	 * @return null
 	 */
 	public function actionGetGoogleCloudBuckets()
 	{

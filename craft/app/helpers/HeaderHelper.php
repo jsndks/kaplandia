@@ -1,27 +1,31 @@
 <?php
 
-/**
- * Craft by Pixel & Tonic
- *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
- * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
- * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
 namespace Craft;
 
+/**
+ * Class HeaderHelper
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
+ * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
+ * @license   http://buildwithcraft.com/license Craft License Agreement
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.helpers
+ * @since     1.3
+ */
 class HeaderHelper
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * @param $extension
+	 *
 	 * @throws Exception
 	 */
 	public static function setContentTypeByExtension($extension)
 	{
 		$extension = strtolower($extension);
-		$mimeTypes = require_once(Craft::getPathOfAlias('app.framework.utils.mimeTypes').'.php');
+		$mimeTypes = require(Craft::getPathOfAlias('app.framework.utils.mimeTypes').'.php');
 
 		if (!array_key_exists($extension, $mimeTypes))
 		{
@@ -34,7 +38,7 @@ class HeaderHelper
 	/**
 	 * Tells the browser not to cache the following content
 	 *
-	 * @return void
+	 * @return null
 	 */
 	public static function setNoCache()
 	{
@@ -48,16 +52,17 @@ class HeaderHelper
 	}
 
 	/**
-	 * Tells the browser not to request this content again the next $sec seconds but use the browser cached content
+	 * Tells the browser not to request this content again the next $sec seconds but use the browser cached content.
 	 *
-	 * @param integer $seconds Time in seconds to hold in browser cache
-	 * @return void
+	 * @param int $seconds Time in seconds to hold in browser cache
+	 *
+	 * @return null
 	 */
 	public static function setExpires($seconds = 300)
 	{
 		static::setHeader(
 			array(
-				'Expires' => gmdate('D, d M Y H:i:s', time() + $seconds) . ' GMT',
+				'Expires' => gmdate('D, d M Y H:i:s', time() + $seconds).' GMT',
 				'Cache-Control' => "max-age={$seconds}, public, s-maxage={$seconds}",
 			)
 		);
@@ -67,7 +72,7 @@ class HeaderHelper
 	/**
 	 * Tells the browser that the following content is private
 	 *
-	 * @return void
+	 * @return null
 	 */
 	public static function setPrivate()
 	{
@@ -83,7 +88,7 @@ class HeaderHelper
 	/**
 	 * Tells the browser that the following content is public
 	 *
-	 * @return void
+	 * @return null
 	 */
 	public static function setPublic()
 	{
@@ -99,9 +104,9 @@ class HeaderHelper
 	 * Forces a file download. Be sure to give the right extension.
 	 *
 	 * @param string  $fileName The name of the file when it's downloaded
-	 * @param integer $fileSize The size in bytes.
+	 * @param int     $fileSize The size in bytes.
 	 *
-	 * @return void
+	 * @return null
 	 */
 	public static function setDownload($fileName, $fileSize = null)
 	{
@@ -124,22 +129,24 @@ class HeaderHelper
 
 
 	/**
-	 * Tells the browser the length of the following content.  This mostly makes sense when using the download function
-	 * so the browser can calculate how many bytes are left during the process
+	 * Tells the browser the length of the following content. This mostly makes sense when using the download function
+	 * so the browser can calculate how many bytes are left during the process.
 	 *
-	 * @param integer $sizeInBytes The content size in bytes
-	 * @return void
+	 * @param int $sizeInBytes The content size in bytes
+	 *
+	 * @return null
 	 */
 	public static function setLength($sizeInBytes)
 	{
-		static::setHeader(array('Content-Length' => (int)$sizeInBytes)
-		);
+		static::setHeader(array('Content-Length' => (int)$sizeInBytes));
 	}
 
 	/**
 	 * Removes a header by key.
 	 *
 	 * @param $key
+	 *
+	 * @return null
 	 */
 	public static function removeHeader($key)
 	{
@@ -150,6 +157,7 @@ class HeaderHelper
 	 * Checks whether a header is currently set or not.
 	 *
 	 * @param $key
+	 *
 	 * @return bool
 	 */
 	public static function isHeaderSet($key)
@@ -185,7 +193,8 @@ class HeaderHelper
 	 * Called to output a header.
 	 *
 	 * @param array $header Use key => value
-	 * @return void
+	 *
+	 * @return null
 	 */
 	public static function setHeader($header)
 	{

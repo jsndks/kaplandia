@@ -154,7 +154,8 @@ input[type="text"], input[type="password"] {
     color: #a59c94; }
 
 .construction {
-  text-align: center; }
+  text-align: center;
+  padding: 100px; }
 
 /* ---------------------------------------------------------------------
  Logo
@@ -380,8 +381,52 @@ input[type="text"], input[type="password"] {
 /* ---------------------------------------------------------------------
  Pin Popup
 ------------------------------------------------------------------------ */
-.pinPopup > * {
+.pinPopup .extra {
+  display: none; }
+
+.pinPopup {
+  text-align: center;
+  font-weight: 300; }
+
+.pinPopup-hd {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #7f7f7f; }
+
+.leaflet-container h2.pinPopup-hd-title {
+  font-size: 18px;
+  color: #c07635;
+  margin: 3px 0;
+  text-transform: uppercase; }
+
+.leaflet-container.dark a.pinPopup-hd-link {
+  text-decoration: none;
+  font-style: italic;
+  font-size: 14px;
+  color: #6d3b0f;
+  font-weight: 400; }
+
+.pinPopup-hd-desc {
+  text-decoration: none;
+  font-size: 14px;
+  color: #6d3b0f;
+  font-weight: 400; }
+
+.pinPopup-bd {
+  padding-top: 16px; }
+
+.pinPopup-bd-title {
+  margin: 3px 0;
+  font-size: 22px;
+  margin-bottom: 6px; }
+
+.pinPopup-bd-sub {
+  font-size: 14px;
   margin-bottom: 12px; }
+
+.pinPopup-bd-date {
+  font-size: 16px;
+  color: #b75b85;
+  font-weight: 400; }
 
 /* ---------------------------------------------------------------------
  blogPreview
@@ -400,6 +445,34 @@ input[type="text"], input[type="password"] {
   background-size: cover;
   background-repeat: no-repeat;
   margin-bottom: 32px; }
+
+/* ---------------------------------------------------------------------
+ loader
+------------------------------------------------------------------------ */
+.loader {
+  margin: 0 0 2em;
+  height: 100px;
+  width: 20%;
+  text-align: center;
+  padding: 1em;
+  margin: 0 auto 1em;
+  display: inline-block;
+  vertical-align: top; }
+
+.loader path, .loader rect {
+  fill: #FF6700; }
+
+/* ---------------------------------------------------------------------
+ pagination
+------------------------------------------------------------------------ */
+.paginateion {
+  padding: 50px 0; }
+
+.paginateion > a:first-child {
+  float: left; }
+
+.paginateion > a:last-child {
+  float: right; }
 
 @media screen and (min-width: 320px) {
   /* ---------------------------------------------------------------------

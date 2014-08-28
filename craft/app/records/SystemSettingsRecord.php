@@ -2,20 +2,20 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class SystemSettingsRecord
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.records
+ * @since     1.0
  */
 class SystemSettingsRecord extends BaseRecord
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * @return string
 	 */
@@ -25,7 +25,19 @@ class SystemSettingsRecord extends BaseRecord
 	}
 
 	/**
-	 * @access protected
+	 * @return array
+	 */
+	public function defineIndexes()
+	{
+		return array(
+			array('columns' => 'category', 'unique' => true),
+		);
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
 	 * @return array
 	 */
 	protected function defineAttributes()
@@ -33,16 +45,6 @@ class SystemSettingsRecord extends BaseRecord
 		return array(
 			'category' => array(AttributeType::String, 'maxLength' => 15, 'required' => true),
 			'settings' => AttributeType::Mixed,
-		);
-	}
-
-	/**
-	 * @return array
-	 */
-	public function defineIndexes()
-	{
-		return array(
-			array('columns' => 'category', 'unique' => true),
 		);
 	}
 }

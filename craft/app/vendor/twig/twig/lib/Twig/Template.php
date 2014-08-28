@@ -458,7 +458,8 @@ abstract class Twig_Template implements Twig_TemplateInterface
 
         // Convert any Twig_Markup arguments back to strings
         foreach ($arguments as $key => $value) {
-            if ($value instanceof Twig_Markup) {
+            // We don't want to convert subclasses of Twig_Markup, like RichTextData.
+            if ($value instanceof Twig_Markup && get_class($value) == 'Twig_Markup') {
                 $arguments[$key] = (string) $value;
             }
         }

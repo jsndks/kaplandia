@@ -2,69 +2,32 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Entry content model class.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Entry content model class
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.models
+ * @since     2.0
  */
 class ContentModel extends BaseModel
 {
-	private $_requiredFields;
-	private $_attributeConfigs;
+	// Properties
+	// =========================================================================
 
 	/**
-	 * @access protected
-	 * @return array
+	 * @var
 	 */
-	protected function defineAttributes()
-	{
-		$requiredTitle = (isset($this->_requiredFields) && in_array('title', $this->_requiredFields));
+	private $_requiredFields;
 
-		$attributes = array(
-			'id'        => AttributeType::Number,
-			'elementId' => AttributeType::Number,
-			'locale'    => array(AttributeType::Locale, 'default' => craft()->i18n->getPrimarySiteLocaleId()),
-			'title'     => array(AttributeType::String, 'required' => $requiredTitle, 'maxLength' => 255),
-		);
+	/**
+	 * @var
+	 */
+	private $_attributeConfigs;
 
-		if (craft()->isInstalled() && !craft()->isConsole())
-		{
-			foreach (craft()->fields->getAllFields() as $field)
-			{
-				$fieldType = $field->getFieldType();
-
-				if ($fieldType)
-				{
-					$attributeConfig = $fieldType->defineContentAttribute();
-				}
-
-				// Default to Mixed
-				if (!$fieldType || !$attributeConfig)
-				{
-					$attributeConfig = AttributeType::Mixed;
-				}
-
-				$attributeConfig = ModelHelper::normalizeAttributeConfig($attributeConfig);
-				$attributeConfig['label'] = $field->name;
-
-				if (isset($this->_requiredFields) && in_array($field->id, $this->_requiredFields))
-				{
-					$attributeConfig['required'] = true;
-				}
-
-				$attributes[$field->handle] = $attributeConfig;
-			}
-		}
-
-		return $attributes;
-	}
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns this model's normalized attribute configs.
@@ -85,6 +48,8 @@ class ContentModel extends BaseModel
 	 * Sets the required fields.
 	 *
 	 * @param array $requiredFields
+	 *
+	 * @return null
 	 */
 	public function setRequiredFields($requiredFields)
 	{
@@ -112,7 +77,8 @@ class ContentModel extends BaseModel
 	 * Validates the custom fields.
 	 *
 	 * @param array|null $attributes
-	 * @param bool $clearErrors
+	 * @param bool       $clearErrors
+	 *
 	 * @return bool
 	 */
 	public function validate($attributes = null, $clearErrors = true)
@@ -160,5 +126,54 @@ class ContentModel extends BaseModel
 		}
 
 		return $validates;
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
+	 * @return array
+	 */
+	protected function defineAttributes()
+	{
+		$requiredTitle = (isset($this->_requiredFields) && in_array('title', $this->_requiredFields));
+
+		$attributes = array(
+			'id'        => AttributeType::Number,
+			'elementId' => AttributeType::Number,
+			'locale'    => array(AttributeType::Locale, 'default' => craft()->i18n->getPrimarySiteLocaleId()),
+			'title'     => array(AttributeType::String, 'required' => $requiredTitle, 'maxLength' => 255),
+		);
+
+		if (craft()->isInstalled() && !craft()->isConsole())
+		{
+			foreach (craft()->fields->getAllFields() as $field)
+			{
+				$fieldType = $field->getFieldType();
+
+				if ($fieldType)
+				{
+					$attributeConfig = $fieldType->defineContentAttribute();
+				}
+
+				// Default to Mixed
+				if (!$fieldType || !$attributeConfig)
+				{
+					$attributeConfig = AttributeType::Mixed;
+				}
+
+				$attributeConfig = ModelHelper::normalizeAttributeConfig($attributeConfig);
+				$attributeConfig['label'] = $field->name;
+
+				if (isset($this->_requiredFields) && in_array($field->id, $this->_requiredFields))
+				{
+					$attributeConfig['required'] = true;
+				}
+
+				$attributes[$field->handle] = $attributeConfig;
+			}
+		}
+
+		return $attributes;
 	}
 }

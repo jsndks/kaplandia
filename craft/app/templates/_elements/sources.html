@@ -13,7 +13,9 @@
 				>{{ source.label }}</a>
 				{% if source.nested is defined and source.nested is not empty %}
 					<div class="toggle"></div>
-					{% include "_elements/sources" with { sources: source.nested } %}
+					{% include "_elements/sources" with {
+						sources: source.nested
+					} %}
 				{% endif %}
 			</li>
 		{% endif %}

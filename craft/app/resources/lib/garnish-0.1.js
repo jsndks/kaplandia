@@ -341,12 +341,16 @@ Garnish = $.extend(Garnish, {
 			$target = $(target);
 
 		$target.css({
-			lineHeight:    $source.css('lineHeight'),
-			fontSize:      $source.css('fontSize'),
 			fontFamily:    $source.css('fontFamily'),
+			fontSize:      $source.css('fontSize'),
 			fontWeight:    $source.css('fontWeight'),
 			letterSpacing: $source.css('letterSpacing'),
-			textAlign:     $source.css('textAlign')
+			lineHeight:    $source.css('lineHeight'),
+			textAlign:     $source.css('textAlign'),
+			textIndent:    $source.css('textIndent'),
+			whiteSpace:    $source.css('whiteSpace'),
+			wordSpacing:   $source.css('wordSpacing'),
+			wordWrap:      $source.css('wordWrap')
 		});
 	},
 
@@ -1515,6 +1519,7 @@ Garnish.ContextMenu = Garnish.Base.extend({
 			if (option == '-')
 			{
 				// Create a new <ul>
+				$('<hr/>').appendTo(this.$menu);
 				$ul = $('<ul/>').appendTo(this.$menu);
 			}
 			else
@@ -2324,6 +2329,11 @@ Garnish.EscManager = Garnish.Base.extend({
 			}
 
 			func.call(handler.obj, ev);
+
+			if (typeof handler.obj.trigger == 'function')
+			{
+				handler.obj.trigger('escape');
+			}
 		}
 	}
 
@@ -2685,7 +2695,7 @@ Garnish.LightSwitch = Garnish.Base.extend({
 		this.$innerContainer.stop().animate({marginLeft: 0}, 'fast');
 		this.$input.val(Garnish.Y_AXIS);
 		this.on = true;
-		this.settings.onChange();
+		this.onChange();
 
 		this.$toggleTarget.show();
 		this.$toggleTarget.height('auto');
@@ -2701,7 +2711,7 @@ Garnish.LightSwitch = Garnish.Base.extend({
 		this.$innerContainer.stop().animate({marginLeft: Garnish.LightSwitch.offMargin}, 'fast');
 		this.$input.val('');
 		this.on = false;
-		this.settings.onChange();
+		this.onChange();
 
 		this.$toggleTarget.stop().animate({height: 0}, 'fast');
 	},
@@ -2716,6 +2726,13 @@ Garnish.LightSwitch = Garnish.Base.extend({
 		{
 			this.turnOff();
 		}
+	},
+
+	onChange: function()
+	{
+		this.trigger('change');
+		this.settings.onChange();
+		this.$outerContainer.trigger('change');
 	},
 
 	_onMouseDown: function()
@@ -2848,7 +2865,7 @@ Garnish.Menu = Garnish.Base.extend({
 	{
 		this.setSettings(settings, Garnish.Menu.defaults);
 
-		this.$container = $(container).appendTo(Garnish.$bod);
+		this.$container = $(container);
 		this.$options = this.$container.find('a');
 		this.$options.data('menu', this);
 
@@ -2939,6 +2956,9 @@ Garnish.Menu = Garnish.Base.extend({
 
 	show: function()
 	{
+		// Move the menu to the end of the DOM
+		this.$container.appendTo(Garnish.$bod)
+
 		if (this.$trigger)
 		{
 			this.setPositionRelativeToTrigger();
@@ -2982,6 +3002,7 @@ Garnish.MenuBtn = Garnish.Base.extend({
 	$btn: null,
 	menu: null,
 	showingMenu: false,
+	disabled: true,
 
 	/**
 	 * Constructor
@@ -2993,15 +3014,21 @@ Garnish.MenuBtn = Garnish.Base.extend({
 		// Is this already a menu button?
 		if (this.$btn.data('menubtn'))
 		{
+			// Grab the old MenuBtn's menu container
+			var $menu = this.$btn.data('menubtn').menu.$container;
+
 			Garnish.log('Double-instantiating a menu button on an element');
 			this.$btn.data('menubtn').destroy();
+		}
+		else
+		{
+			var $menu = this.$btn.next('.menu').detach();
 		}
 
 		this.$btn.data('menubtn', this);
 
 		this.setSettings(settings, Garnish.MenuBtn.defaults);
 
-		var $menu = this.$btn.next('.menu');
 		this.menu = new Garnish.Menu($menu, {
 			attachToElement: this.$btn,
 			onOptionSelect: $.proxy(this, 'onOptionSelect')
@@ -3010,6 +3037,7 @@ Garnish.MenuBtn = Garnish.Base.extend({
 		this.menu.on('hide', $.proxy(this, 'onMenuHide'));
 
 		this.addListener(this.$btn, 'mousedown', 'onMouseDown');
+		this.enable();
 	},
 
 	onMouseDown: function(ev)
@@ -3033,6 +3061,11 @@ Garnish.MenuBtn = Garnish.Base.extend({
 
 	showMenu: function()
 	{
+		if (this.disabled)
+		{
+			return;
+		}
+
 		this.menu.show();
 		this.$btn.addClass('active');
 		this.showingMenu = true;
@@ -3068,8 +3101,17 @@ Garnish.MenuBtn = Garnish.Base.extend({
 	onOptionSelect: function(option)
 	{
 		this.settings.onOptionSelect(option);
-	}
+	},
 
+	enable: function ()
+	{
+		this.disabled = false;
+	},
+
+	disable: function ()
+	{
+		this.disabled = true;
+	}
 },
 {
 	defaults: {
@@ -3929,8 +3971,7 @@ Garnish.NiceText = Garnish.Base.extend({
 			display: 'block',
 			position: 'absolute',
 			top: -9999,
-			left: -9999,
-			wordWrap: 'break-word'
+			left: -9999
 		});
 
 		this.inputBoxSizing = this.$input.css('box-sizing');

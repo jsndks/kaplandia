@@ -90,7 +90,7 @@ define(function(require, exports, module) {
             });
 
             var myIcon = L.icon({
-                iconUrl: 'assets/media/images/marker.png',
+                iconUrl: '_static/web/assets/media/images/marker.png',
                 iconSize: [43, 52],
                 iconAnchor: [21, 52],
                 popupAnchor: [0, -52]
@@ -107,8 +107,10 @@ define(function(require, exports, module) {
 
         var polyline = L.polyline(line, polyline_options).addTo(map);
 
-        map.fitBounds(featureLayer.getBounds(), {
-            padding: [100, 100]
+        window.setTimeout(function() {
+            map.fitBounds(featureLayer.getBounds(), {
+                padding: [100, 100]
+            }, 0);
         });
     };
 
@@ -152,6 +154,7 @@ define(function(require, exports, module) {
 
             var pinData = {
                 title: $(location).data('title'),
+                date: $(location).find('date').text(),
                 address: address,
                 description: $(location).data('description'),
                 lat: $(location).data('lat'),

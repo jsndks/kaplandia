@@ -2,59 +2,43 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * User model class.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * User model class
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.models
+ * @since     1.0
  */
 class UserModel extends BaseElementModel
 {
+	// Properties
+	// =========================================================================
+
+	/**
+	 * @var string
+	 */
 	protected $elementType = ElementType::User;
+
+	/**
+	 * The cached list of groups the user belongs to. Set by {@link getGroups()}.
+	 *
+	 * @var array
+	 */
+	private $_groups;
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Use the full name or username as the string representation.
 	 *
 	 * @return string
 	 */
-	function __toString()
+	public function __toString()
 	{
 		return $this->username;
-	}
-
-	/**
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineAttributes()
-	{
-		return array_merge(parent::defineAttributes(), array(
-			'username'               => array(AttributeType::String, 'maxLength' => 100, 'required' => true),
-			'photo'                  => AttributeType::String,
-			'firstName'              => AttributeType::String,
-			'lastName'               => AttributeType::String,
-			'email'                  => AttributeType::Email,
-			'password'               => AttributeType::String,
-			'preferredLocale'        => AttributeType::Locale,
-			'admin'                  => AttributeType::Bool,
-			'client'                 => AttributeType::Bool,
-			'status'                 => array(AttributeType::Enum, 'values' => array(UserStatus::Active, UserStatus::Locked, UserStatus::Suspended, UserStatus::Pending, UserStatus::Archived), 'default' => UserStatus::Pending),
-			'lastLoginDate'          => AttributeType::DateTime,
-			'invalidLoginCount'      => AttributeType::Number,
-			'lastInvalidLoginDate'   => AttributeType::DateTime,
-			'lockoutDate'            => AttributeType::DateTime,
-			'passwordResetRequired'  => AttributeType::Bool,
-			'lastPasswordChangeDate' => AttributeType::DateTime,
-			'unverifiedEmail'        => AttributeType::Email,
-			'newPassword'            => AttributeType::String,
-			'currentPassword'        => AttributeType::String,
-		));
 	}
 
 	/**
@@ -71,24 +55,45 @@ class UserModel extends BaseElementModel
 	 * Returns the user's groups.
 	 *
 	 * @param string|null $indexBy
+	 *
 	 * @return array
 	 */
 	public function getGroups($indexBy = null)
 	{
-		if (craft()->getEdition() == Craft::Pro)
+		if (!isset($this->_groups))
 		{
-			return craft()->userGroups->getGroupsByUserId($this->id, $indexBy);
+			if (craft()->getEdition() == Craft::Pro)
+			{
+				$this->_groups = craft()->userGroups->getGroupsByUserId($this->id);
+			}
+			else
+			{
+				$this->_groups = array();
+			}
+		}
+
+		if (!$indexBy)
+		{
+			$groups = $this->_groups;
 		}
 		else
 		{
-			return array();
+			$groups = array();
+
+			foreach ($this->_groups as $group)
+			{
+				$groups[$group->$indexBy] = $group;
+			}
 		}
+
+		return $groups;
 	}
 
 	/**
 	 * Returns whether the user is in a specific group.
 	 *
 	 * @param mixed $group The user group model, its handle, or ID.
+	 *
 	 * @return bool
 	 */
 	public function isInGroup($group)
@@ -128,7 +133,7 @@ class UserModel extends BaseElementModel
 		$firstName = trim($this->firstName);
 		$lastName = trim($this->lastName);
 
-		return $firstName . ($firstName && $lastName ? ' ' : '') . $lastName;
+		return $firstName.($firstName && $lastName ? ' ' : '').$lastName;
 	}
 
 	/**
@@ -181,6 +186,7 @@ class UserModel extends BaseElementModel
 	 * Returns the URL to the user's photo.
 	 *
 	 * @param int $size
+	 *
 	 * @return string|null
 	 */
 	public function getPhotoUrl($size = 100)
@@ -195,6 +201,7 @@ class UserModel extends BaseElementModel
 	 * Returns the URL to the thumbnail for this user for a given size.
 	 *
 	 * @param int $size
+	 *
 	 * @return false|null|string
 	 */
 	public function getThumbUrl($size = 100)
@@ -232,6 +239,7 @@ class UserModel extends BaseElementModel
 	 * Returns whether the user has permission to perform a given action.
 	 *
 	 * @param string $permission
+	 *
 	 * @return bool
 	 */
 	public function can($permission)
@@ -261,6 +269,7 @@ class UserModel extends BaseElementModel
 	 * Returns whether the user has shunned a given message.
 	 *
 	 * @param string $message
+	 *
 	 * @return bool
 	 */
 	public function hasShunned($message)
@@ -338,8 +347,8 @@ class UserModel extends BaseElementModel
 	/**
 	 * Populates a new user instance with a given set of attributes.
 	 *
-	 * @static
 	 * @param mixed $attributes
+	 *
 	 * @return UserModel
 	 */
 	public static function populateModel($attributes)
@@ -366,7 +375,8 @@ class UserModel extends BaseElementModel
 	/**
 	 * @param null $attributes
 	 * @param bool $clearErrors
-	 * @return bool|void
+	 *
+	 * @return bool|null
 	 */
 	public function validate($attributes = null, $clearErrors = true)
 	{
@@ -377,5 +387,39 @@ class UserModel extends BaseElementModel
 		}
 
 		return parent::validate($attributes, false);
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
+	 * @return array
+	 */
+	protected function defineAttributes()
+	{
+		$requireUsername = !craft()->config->get('useEmailAsUsername');
+
+		return array_merge(parent::defineAttributes(), array(
+			'username'                   => array(AttributeType::String, 'maxLength' => 100, 'required' => $requireUsername),
+			'photo'                      => AttributeType::String,
+			'firstName'                  => AttributeType::String,
+			'lastName'                   => AttributeType::String,
+			'email'                      => array(AttributeType::Email, 'required' => !$requireUsername),
+			'password'                   => AttributeType::String,
+			'preferredLocale'            => AttributeType::Locale,
+			'admin'                      => AttributeType::Bool,
+			'client'                     => AttributeType::Bool,
+			'status'                     => array(AttributeType::Enum, 'values' => array(UserStatus::Active, UserStatus::Locked, UserStatus::Suspended, UserStatus::Pending, UserStatus::Archived), 'default' => UserStatus::Pending),
+			'lastLoginDate'              => AttributeType::DateTime,
+			'invalidLoginCount'          => AttributeType::Number,
+			'lastInvalidLoginDate'       => AttributeType::DateTime,
+			'lockoutDate'                => AttributeType::DateTime,
+			'passwordResetRequired'      => AttributeType::Bool,
+			'lastPasswordChangeDate'     => AttributeType::DateTime,
+			'unverifiedEmail'            => AttributeType::Email,
+			'newPassword'                => AttributeType::String,
+			'currentPassword'            => AttributeType::String,
+			'verificationCodeIssuedDate' => AttributeType::DateTime,
+		));
 	}
 }

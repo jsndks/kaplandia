@@ -2,28 +2,37 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class DbCommand
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Extends CDbCommand
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.etc.db
+ * @since     1.0
  */
 class DbCommand extends \CDbCommand
 {
+	// Properties
+	// =========================================================================
+
 	/**
-	 * @access private
-	 * @var array Captures the joined tables
+	 * Captures the joined tables.
+	 *
+	 * @var array
 	 */
 	private $_joinedTables;
 
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * Constructor
+	 *
+	 * @param \CDbConnection $connection
+	 * @param null           $query
+	 *
+	 * @return DbCommand
 	 */
 	public function __construct(\CDbConnection $connection, $query = null)
 	{
@@ -45,6 +54,7 @@ class DbCommand extends \CDbCommand
 	 * Returns whether a given table has been joined in this query.
 	 *
 	 * @param string $table
+	 *
 	 * @return bool
 	 */
 	public function isJoined($table)
@@ -56,6 +66,7 @@ class DbCommand extends \CDbCommand
 	 * Returns the total number of rows matched by the query.
 	 *
 	 * @param string $column The column to count.
+	 *
 	 * @return int The total number of rows matched by the query.
 	 */
 	public function count($column)
@@ -83,6 +94,7 @@ class DbCommand extends \CDbCommand
 	 * Adds additional select columns.
 	 *
 	 * @param string $columns
+	 *
 	 * @return DbCommand
 	 */
 	public function addSelect($columns = '*')
@@ -98,6 +110,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param $tables
+	 *
 	 * @return \CDbCommand
 	 */
 	public function from($tables)
@@ -109,6 +122,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param mixed $conditions
 	 * @param array $params
+	 *
 	 * @return DbCommand
 	 */
 	public function where($conditions, $params = array())
@@ -125,8 +139,9 @@ class DbCommand extends \CDbCommand
 	/**
 	 * Adds an additional "and where" condition.
 	 *
-	 * @param mixed $conditions
+	 * @param mixed      $conditions
 	 * @param array|null $params
+	 *
 	 * @return DbCommand
 	 */
 	public function andWhere($conditions, $params = array())
@@ -143,8 +158,9 @@ class DbCommand extends \CDbCommand
 	/**
 	 * Adds an additional "or where" condition.
 	 *
-	 * @param mixed $conditions
+	 * @param mixed      $conditions
 	 * @param array|null $params
+	 *
 	 * @return DbCommand
 	 */
 	public function orWhere($conditions, $params = array())
@@ -160,8 +176,9 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param string $table
-	 * @param mixed $conditions
-	 * @param array $params
+	 * @param mixed  $conditions
+	 * @param array  $params
+	 *
 	 * @return DbCommand
 	 */
 	public function join($table, $conditions, $params = array())
@@ -174,8 +191,9 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param string $table
-	 * @param mixed $conditions
-	 * @param array $params
+	 * @param mixed  $conditions
+	 * @param array  $params
+	 *
 	 * @return DbCommand
 	 */
 	public function leftJoin($table, $conditions, $params = array())
@@ -188,8 +206,9 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param string $table
-	 * @param mixed $conditions
-	 * @param array $params
+	 * @param mixed  $conditions
+	 * @param array  $params
+	 *
 	 * @return DbCommand
 	 */
 	public function rightJoin($table, $conditions, $params = array())
@@ -202,6 +221,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param $table
+	 *
 	 * @return DbCommand
 	 */
 	public function crossJoin($table)
@@ -213,6 +233,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param $table
+	 *
 	 * @return DbCommand
 	 */
 	public function naturalJoin($table)
@@ -225,6 +246,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param mixed $conditions
 	 * @param array $params
+	 *
 	 * @return DbCommand
 	 */
 	public function having($conditions, $params = array())
@@ -235,6 +257,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param mixed $columns
+	 *
 	 * @return DbCommand
 	 */
 	public function addOrder($columns)
@@ -254,6 +277,7 @@ class DbCommand extends \CDbCommand
 	 * @param string $table
 	 * @param array  $columns
 	 * @param bool   $includeAuditColumns
+	 *
 	 * @return int
 	 */
 	public function insert($table, $columns, $includeAuditColumns = true)
@@ -275,6 +299,7 @@ class DbCommand extends \CDbCommand
 	 * @param array  $columns
 	 * @param array  $rows
 	 * @param bool   $includeAuditColumns
+	 *
 	 * @return int
 	 */
 	public function insertAll($table, $columns, $rows, $includeAuditColumns = true)
@@ -309,6 +334,7 @@ class DbCommand extends \CDbCommand
 	 * @param array  $keyColumns
 	 * @param array  $updateColumns
 	 * @param bool   $includeAuditColumns
+	 *
 	 * @return int
 	 */
 	public function insertOrUpdate($table, $keyColumns, $updateColumns, $includeAuditColumns = true)
@@ -362,6 +388,7 @@ class DbCommand extends \CDbCommand
 	 * @param mixed  $conditions
 	 * @param array  $params
 	 * @param bool   $includeAuditColumns
+	 *
 	 * @return int
 	 */
 	public function update($table, $columns, $conditions = '', $params = array(), $includeAuditColumns = true)
@@ -382,6 +409,7 @@ class DbCommand extends \CDbCommand
 	 * @param string $column
 	 * @param string $find
 	 * @param string $replace
+	 *
 	 * @return int
 	 */
 	public function replace($table, $column, $find, $replace)
@@ -395,6 +423,7 @@ class DbCommand extends \CDbCommand
 	 * @param string $table
 	 * @param mixed  $conditions
 	 * @param array  $params
+	 *
 	 * @return int
 	 */
 	public function delete($table, $conditions = '', $params = array())
@@ -405,15 +434,15 @@ class DbCommand extends \CDbCommand
 	}
 
 	/**
-	 * Adds `id`, `dateCreated`, `date_update`, and `uid` columns to $columns,
-	 * packages up the column definitions into strings,
-	 * and then passes it back to CDbCommand->createTable()
+	 * Adds `id`, `dateCreated`, `date_update`, and `uid` columns to $columns, packages up the column definitions into
+	 * strings, and then passes it back to CDbCommand->createTable().
 	 *
 	 * @param string $table
-	 * @param array $columns
-	 * @param null  $options
-	 * @param bool  $addIdColumn
-	 * @param bool  $addAuditColumns
+	 * @param array  $columns
+	 * @param null   $options
+	 * @param bool   $addIdColumn
+	 * @param bool   $addAuditColumns
+	 *
 	 * @return int
 	 */
 	public function createTable($table, $columns, $options=null, $addIdColumn = true, $addAuditColumns = true)
@@ -438,6 +467,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param $table
 	 * @param $newName
+	 *
 	 * @return int
 	 */
 	public function renameTable($table, $newName)
@@ -449,6 +479,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param $table
+	 *
 	 * @return int
 	 */
 	public function dropTable($table)
@@ -459,6 +490,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param $table
+	 *
 	 * @return int
 	 */
 	public function dropTableIfExists($table)
@@ -470,6 +502,7 @@ class DbCommand extends \CDbCommand
 
 	/**
 	 * @param $table
+	 *
 	 * @return int
 	 */
 	public function truncateTable($table)
@@ -482,6 +515,7 @@ class DbCommand extends \CDbCommand
 	 * @param $table
 	 * @param $column
 	 * @param $type
+	 *
 	 * @return mixed
 	 */
 	public function addColumn($table, $column, $type)
@@ -494,6 +528,7 @@ class DbCommand extends \CDbCommand
 	 * @param $table
 	 * @param $column
 	 * @param $type
+	 *
 	 * @return mixed
 	 */
 	public function addColumnFirst($table, $column, $type)
@@ -508,6 +543,7 @@ class DbCommand extends \CDbCommand
 	 * @param $column
 	 * @param $type
 	 * @param $before
+	 *
 	 * @return mixed
 	 */
 	public function addColumnBefore($table, $column, $type, $before)
@@ -522,6 +558,7 @@ class DbCommand extends \CDbCommand
 	 * @param $column
 	 * @param $type
 	 * @param $after
+	 *
 	 * @return mixed
 	 */
 	public function addColumnAfter($table, $column, $type, $after)
@@ -534,6 +571,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param $table
 	 * @param $column
+	 *
 	 * @return int
 	 */
 	public function dropColumn($table, $column)
@@ -546,6 +584,7 @@ class DbCommand extends \CDbCommand
 	 * @param $table
 	 * @param $name
 	 * @param $newName
+	 *
 	 * @return int
 	 */
 	public function renameColumn($table, $name, $newName)
@@ -559,7 +598,8 @@ class DbCommand extends \CDbCommand
 	 * @param      $column
 	 * @param      $type
 	 * @param null $newName
-	 * @param      $after
+	 * @param null $after
+	 *
 	 * @return int
 	 */
 	public function alterColumn($table, $column, $type, $newName = null, $after = null)
@@ -570,12 +610,13 @@ class DbCommand extends \CDbCommand
 	}
 
 	/**
-	 * @param $table
-	 * @param $columns
-	 * @param $refTable
-	 * @param $refColumns
+	 * @param      $table
+	 * @param      $columns
+	 * @param      $refTable
+	 * @param      $refColumns
 	 * @param null $delete
 	 * @param null $update
+	 *
 	 * @return int
 	 */
 	public function addForeignKey($table, $columns, $refTable, $refColumns, $delete = null, $update = null)
@@ -589,6 +630,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param string $table
 	 * @param string $columns
+	 *
 	 * @return int
 	 */
 	public function dropForeignKey($table, $columns)
@@ -599,9 +641,10 @@ class DbCommand extends \CDbCommand
 	}
 
 	/**
-	 * @param $table
-	 * @param $columns
+	 * @param      $table
+	 * @param      $columns
 	 * @param bool $unique
+	 *
 	 * @return int
 	 */
 	public function createIndex($table, $columns, $unique = false)
@@ -614,8 +657,8 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param string $table
 	 * @param string $columns
-	 * $param $unique
 	 * @param bool   $unique
+	 *
 	 * @return int
 	 */
 	public function dropIndex($table, $columns, $unique = false)
@@ -628,6 +671,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param string $table
 	 * @param string $columns
+	 *
 	 * @return int
 	 */
 	public function addPrimaryKey($table, $columns)
@@ -640,6 +684,7 @@ class DbCommand extends \CDbCommand
 	/**
 	 * @param string $table
 	 * @param string $columns
+	 *
 	 * @return int
 	 */
 	public function dropPrimaryKey($table, $columns)
@@ -649,11 +694,14 @@ class DbCommand extends \CDbCommand
 		return parent::dropPrimaryKey($name, $table);
 	}
 
+	// Private Methods
+	// =========================================================================
+
 	/**
 	 * Adds a table to our record of joined tables.
 	 *
-	 * @access private
 	 * @param string $table The table name
+	 *
 	 * @return bool
 	 */
 	private function _addJoinedTable($table)
@@ -678,12 +726,12 @@ class DbCommand extends \CDbCommand
 	}
 
 	/**
-	 * Adds support for array('column' => 'value') conditional syntax.
-	 * Supports nested conditionals, e.g. array('or', array('column' => 'value'), array('column2' => 'value2'))
+	 * Adds support for array('column' => 'value') conditional syntax. Supports nested conditionals, e.g.
+	 * array('or', array('column' => 'value'), array('column2' => 'value2'))
 	 *
-	 * @access private
 	 * @param mixed $conditions
 	 * @param array &$params
+	 *
 	 * @return mixed
 	 */
 	private function _normalizeConditions($conditions, &$params = array())
@@ -705,7 +753,7 @@ class DbCommand extends \CDbCommand
 			if (!is_numeric($key))
 			{
 				$param = ':p'.StringHelper::randomString(9);
-				$normalizedConditions[] = $key.'='.$param;
+				$normalizedConditions[] = craft()->db->quoteColumnName($key).'='.$param;
 				$params[$param] = $value;
 				unset($conditions[$key]);
 			}

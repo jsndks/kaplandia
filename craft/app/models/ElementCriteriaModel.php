@@ -2,101 +2,66 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Element criteria model class.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Element criteria model class
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.models
+ * @since     1.0
  */
 class ElementCriteriaModel extends BaseModel implements \Countable
 {
+	// Properties
+	// =========================================================================
+
+	/**
+	 * @var BaseElementType
+	 */
 	private $_elementType;
 
+	/**
+	 * @var
+	 */
 	private $_supportedFieldHandles;
 
+	/**
+	 * @var
+	 */
 	private $_cachedElements;
+
+	/**
+	 * @var
+	 */
 	private $_cachedElementsAtOffsets;
+
+	/**
+	 * @var
+	 */
 	private $_cachedIds;
+
+	/**
+	 * @var
+	 */
 	private $_cachedTotal;
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Constructor
 	 *
-	 * @param mixed $attributes
+	 * @param mixed           $attributes
 	 * @param BaseElementType $elementType
+	 *
+	 * @return ElementCriteriaModel
 	 */
-	function __construct($attributes, BaseElementType $elementType)
+	public function __construct($attributes, BaseElementType $elementType)
 	{
 		$this->_elementType = $elementType;
+
 		parent::__construct($attributes);
-	}
-
-	/**
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineAttributes()
-	{
-		$attributes = array(
-			'ancestorDist'   => AttributeType::Number,
-			'ancestorOf'     => AttributeType::Mixed,
-			'archived'       => AttributeType::Bool,
-			'dateCreated'    => AttributeType::Mixed,
-			'dateUpdated'    => AttributeType::Mixed,
-			'descendantDist' => AttributeType::Number,
-			'descendantOf'   => AttributeType::Mixed,
-			'fixedOrder'     => AttributeType::Bool,
-			'id'             => AttributeType::Number,
-			'indexBy'        => AttributeType::String,
-			'level'          => AttributeType::Number,
-			'limit'          => array(AttributeType::Number, 'default' => 100),
-			'locale'         => AttributeType::Locale,
-			'localeEnabled'  => array(AttributeType::Bool, 'default' => true),
-			'nextSiblingOf'  => AttributeType::Mixed,
-			'offset'         => array(AttributeType::Number, 'default' => 0),
-			'order'          => array(AttributeType::String, 'default' => 'elements.dateCreated desc'),
-			'prevSiblingOf'  => AttributeType::Mixed,
-			'relatedTo'      => AttributeType::Mixed,
-			'ref'            => AttributeType::String,
-			'search'         => AttributeType::String,
-			'siblingOf'      => AttributeType::Mixed,
-			'slug'           => AttributeType::String,
-			'status'         => array(AttributeType::String, 'default' => BaseElementModel::ENABLED),
-			'uri'            => AttributeType::String,
-			'kind'           => AttributeType::Mixed,
-
-			// TODO: Deprecated
-			'childField'     => AttributeType::String,
-			'childOf'        => AttributeType::Mixed,
-			'depth'          => AttributeType::Number,
-			'parentField'    => AttributeType::String,
-			'parentOf'       => AttributeType::Mixed,
-		);
-
-		// Mix in any custom attributes defined by the element type
-		$elementTypeAttributes = $this->_elementType->defineCriteriaAttributes();
-		$attributes = array_merge($attributes, $elementTypeAttributes);
-
-		// Mix in the custom fields
-		$this->_supportedFieldHandles = array();
-
-		foreach (craft()->fields->getAllFields() as $field)
-		{
-			// Make sure the handle doesn't conflict with an existing attribute
-			if (!isset($attributes[$field->handle]))
-			{
-				$this->_supportedFieldHandles[] = $field->handle;
-				$attributes[$field->handle] = array(AttributeType::Mixed);
-			}
-		}
-
-		return $attributes;
 	}
 
 	/**
@@ -112,11 +77,10 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	}
 
 	/**
-	 * Returns whether an element exists at a given offset.
-	 *
-	 * Required by the ArrayAccess interface.
+	 * Returns whether an element exists at a given offset. Required by the ArrayAccess interface.
 	 *
 	 * @param mixed $offset
+	 *
 	 * @return bool
 	 */
 	public function offsetExists($offset)
@@ -132,11 +96,10 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	}
 
 	/**
-	 * Returns the element at a given offset.
-	 *
-	 * Required by the ArrayAccess interface.
+	 * Returns the element at a given offset. Required by the ArrayAccess interface.
 	 *
 	 * @param mixed $offset
+	 *
 	 * @return mixed
 	 */
 	public function offsetGet($offset)
@@ -152,12 +115,12 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	}
 
 	/**
-	 * Sets the element at a given offset.
-	 *
-	 * Required by the ArrayAccess interface.
+	 * Sets the element at a given offset. Required by the ArrayAccess interface.
 	 *
 	 * @param mixed $offset
 	 * @param mixed $item
+	 *
+	 * @return null
 	 */
 	public function offsetSet($offset, $item)
 	{
@@ -172,11 +135,11 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	}
 
 	/**
-	 * Unsets an element at a given offset.
-	 *
-	 * Required by the ArrayAccess interface.
+	 * Unsets an element at a given offset. Required by the ArrayAccess interface.
 	 *
 	 * @param mixed $offset
+	 *
+	 * @return null
 	 */
 	public function offsetUnset($offset)
 	{
@@ -191,9 +154,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	}
 
 	/**
-	 * Returns the total number of elements matched by this criteria.
-	 *
-	 * Required by the Countable interface.
+	 * Returns the total number of elements matched by this criteria. Required by the Countable interface.
 	 *
 	 * @return int
 	 */
@@ -206,7 +167,8 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Clears the cached values when a new attribute is set.
 	 *
 	 * @param string $name
-	 * @param mixed $value
+	 * @param mixed  $value
+	 *
 	 * @return bool
 	 */
 	public function setAttribute($name, $value)
@@ -247,6 +209,10 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 
 	/**
 	 * language => locale
+	 *
+	 * @param $locale
+	 *
+	 * @return ElementCriteriaModel
 	 */
 	public function setLanguage($locale)
 	{
@@ -258,6 +224,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Returns all elements that match the criteria.
 	 *
 	 * @param array|null $attributes
+	 *
 	 * @return array
 	 */
 	public function find($attributes = null)
@@ -272,6 +239,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 
 			// Cache 'em
 			$offset = $this->offset;
+
 			foreach ($this->_cachedElements as $element)
 			{
 				$this->_cachedElementsAtOffsets[$offset] = $element;
@@ -286,6 +254,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Returns an element at a specific offset.
 	 *
 	 * @param int $offset
+	 *
 	 * @return BaseElementModel|null
 	 */
 	public function findElementAtOffset($offset)
@@ -314,6 +283,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Returns the first element that matches the criteria.
 	 *
 	 * @param array|null $attributes
+	 *
 	 * @return BaseElementModel|null
 	 */
 	public function first($attributes = null)
@@ -327,6 +297,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Returns the last element that matches the criteria.
 	 *
 	 * @param array|null $attributes
+	 *
 	 * @return BaseElementModel|null
 	 */
 	public function last($attributes = null)
@@ -345,6 +316,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Returns all element IDs that match the criteria.
 	 *
 	 * @param array|null $attributes
+	 *
 	 * @return array
 	 */
 	public function ids($attributes = null)
@@ -365,6 +337,7 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 	 * Returns the total elements that match the criteria.
 	 *
 	 * @param array|null $attributes
+	 *
 	 * @return int
 	 */
 	public function total($attributes = null)
@@ -392,10 +365,76 @@ class ElementCriteriaModel extends BaseModel implements \Countable
 		return new $class($this->getAttributes(), $this->_elementType);
 	}
 
+	// Protected Methods
+	// =========================================================================
+
 	/**
-	 * Includes
-	 *
-	 * @access private
+	 * @return array
+	 */
+	protected function defineAttributes()
+	{
+		$attributes = array(
+			'ancestorDist'   => AttributeType::Number,
+			'ancestorOf'     => AttributeType::Mixed,
+			'archived'       => AttributeType::Bool,
+			'dateCreated'    => AttributeType::Mixed,
+			'dateUpdated'    => AttributeType::Mixed,
+			'descendantDist' => AttributeType::Number,
+			'descendantOf'   => AttributeType::Mixed,
+			'fixedOrder'     => AttributeType::Bool,
+			'id'             => AttributeType::Number,
+			'indexBy'        => AttributeType::String,
+			'level'          => AttributeType::Number,
+			'limit'          => array(AttributeType::Number, 'default' => 100),
+			'locale'         => AttributeType::Locale,
+			'localeEnabled'  => array(AttributeType::Bool, 'default' => true),
+			'nextSiblingOf'  => AttributeType::Mixed,
+			'offset'         => array(AttributeType::Number, 'default' => 0),
+			'order'          => array(AttributeType::String, 'default' => 'elements.dateCreated desc'),
+			'prevSiblingOf'  => AttributeType::Mixed,
+			'relatedTo'      => AttributeType::Mixed,
+			'ref'            => AttributeType::String,
+			'search'         => AttributeType::String,
+			'siblingOf'      => AttributeType::Mixed,
+			'slug'           => AttributeType::String,
+			'status'         => array(AttributeType::String, 'default' => BaseElementModel::ENABLED),
+			'title'          => AttributeType::String,
+			'uri'            => AttributeType::String,
+			'kind'           => AttributeType::Mixed,
+
+			// TODO: Deprecated
+			'childField'     => AttributeType::String,
+			'childOf'        => AttributeType::Mixed,
+			'depth'          => AttributeType::Number,
+			'parentField'    => AttributeType::String,
+			'parentOf'       => AttributeType::Mixed,
+		);
+
+		// Mix in any custom attributes defined by the element type
+		$elementTypeAttributes = $this->_elementType->defineCriteriaAttributes();
+		$attributes = array_merge($attributes, $elementTypeAttributes);
+
+		// Mix in the custom fields
+		$this->_supportedFieldHandles = array();
+
+		foreach (craft()->fields->getAllFields() as $field)
+		{
+			// Make sure the handle doesn't conflict with an existing attribute
+			if (!isset($attributes[$field->handle]))
+			{
+				$this->_supportedFieldHandles[] = $field->handle;
+				$attributes[$field->handle] = array(AttributeType::Mixed);
+			}
+		}
+
+		return $attributes;
+	}
+
+	// Private Methods
+	// =========================================================================
+
+	/**
+	 * @return null
 	 */
 	private function _includeInTemplateCaches()
 	{

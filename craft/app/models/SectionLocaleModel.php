@@ -2,38 +2,32 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Section locale model class.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Section locale model class
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.models
+ * @since     1.0
  */
 class SectionLocaleModel extends BaseModel
 {
-	public $urlFormatIsRequired = false;
-	public $nestedUrlFormatIsRequired = false;
+	// Properties
+	// =========================================================================
 
 	/**
-	 * @access protected
-	 * @return array
+	 * @var bool
 	 */
-	protected function defineAttributes()
-	{
-		return array(
-			'id'               => AttributeType::Number,
-			'sectionId'        => AttributeType::Number,
-			'locale'           => AttributeType::Locale,
-			'enabledByDefault' => array(AttributeType::Bool, 'default' => true),
-			'urlFormat'        => array(AttributeType::UrlFormat, 'label' => 'URL Format'),
-			'nestedUrlFormat'  => array(AttributeType::UrlFormat, 'label' => 'URL Format'),
-		);
-	}
+	public $urlFormatIsRequired = false;
+
+	/**
+	 * @var bool
+	 */
+	public $nestedUrlFormatIsRequired = false;
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns this model's validation rules.
@@ -55,5 +49,23 @@ class SectionLocaleModel extends BaseModel
 		}
 
 		return $rules;
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
+	 * @return array
+	 */
+	protected function defineAttributes()
+	{
+		return array(
+			'id'               => AttributeType::Number,
+			'sectionId'        => AttributeType::Number,
+			'locale'           => AttributeType::Locale,
+			'enabledByDefault' => array(AttributeType::Bool, 'default' => true),
+			'urlFormat'        => array(AttributeType::UrlFormat, 'label' => 'URL Format'),
+			'nestedUrlFormat'  => array(AttributeType::UrlFormat, 'label' => 'URL Format'),
+		);
 	}
 }

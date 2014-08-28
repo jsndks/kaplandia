@@ -7,7 +7,8 @@
     "jquery": "1.10.2",
     "nerdery-function-bind": "./tools/cache/nerdery-function-bind",
     "text": "~2.0.10",
-    "jquery.scrollTo": "~1.4.11"
+    "jquery.scrollTo": "~1.4.11",
+    "jquery.lazyload": "~1.9.3"
   },
   "devDependencies": {}
 }

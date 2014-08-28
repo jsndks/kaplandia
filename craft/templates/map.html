@@ -21,21 +21,49 @@
 
 {% block content %}
 
-	{% set locations = craft.entries.section('pins').find() %}
-
 	<a href="{{ siteUrl }}" class="logo logo_alt">
         <img src="{{ siteUrl }}_static/web/assets/media/images/logo.png" alt="" />
     </a>
 
 	<div class="construction">
-		<h1>Map Content Coming Soon!</h1>
-		<img src="{{ siteUrl }}_static/web/assets/media/images/trailer.png" alt="trailer" />
+		<div class="loader" title="5">
+		  <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+		     width="100px" height="100px" viewBox="0 0 24 30" style="enable-background:new 0 0 50 50;" xml:space="preserve">
+		    <rect x="0" y="13" width="4" height="5" fill="#333">
+		      <animate attributeName="height" attributeType="XML"
+		        values="5;21;5"
+		        begin="0s" dur=".6s" repeatCount="indefinite" />
+		      <animate attributeName="y" attributeType="XML"
+		        values="13; 5; 13"
+		        begin="0s" dur=".6s" repeatCount="indefinite" />
+		    </rect>
+		    <rect x="10" y="13" width="4" height="5" fill="#333">
+		      <animate attributeName="height" attributeType="XML"
+		        values="5;21;5"
+		        begin=".15s" dur=".6s" repeatCount="indefinite" />
+		      <animate attributeName="y" attributeType="XML"
+		        values="13; 5; 13"
+		        begin=".15s" dur=".6s" repeatCount="indefinite" />
+		    </rect>
+		    <rect x="20" y="13" width="4" height="5" fill="#333">
+		      <animate attributeName="height" attributeType="XML"
+		        values="5;21;5"
+		        begin=".3s" dur=".6s" repeatCount="indefinite" />
+		      <animate attributeName="y" attributeType="XML"
+		        values="13; 5; 13"
+		        begin=".3s" dur=".6s" repeatCount="indefinite" />
+		    </rect>
+		  </svg>
+		</div>
 	</div>
+
+	{% set locations = craft.entries.section('pins').limit(1000).find() %}
 
 	<ul class="locations">
 		{% for location in locations %}
 		    <li data-title="{{ location.title }}" data-lat="{{ location.mapPin.lat }}" data-lng="{{ location.mapPin.lng }}" data-description="{{ location.description }}">
 		    	<span class="title">{{ location.title }}</span>
+		    	<span class="date">{{ location.postDate|date("F d, Y") }}</span>
 		    	<ul class="address">
 		    		<li>{{ location.mapPin.street1 }}</li>
 		    		{% if location.mapPin.state %}

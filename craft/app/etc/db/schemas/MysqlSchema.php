@@ -2,24 +2,25 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class MysqlSchema
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.etc.db.schemas
+ * @since     1.0
  */
 class MysqlSchema extends \CMysqlSchema
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * @param $table
 	 * @param $column
 	 * @param $type
+	 *
 	 * @return string
 	 */
 	public function addColumnFirst($table, $column, $type)
@@ -39,6 +40,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * @param $column
 	 * @param $type
 	 * @param $after
+	 *
 	 * @return string
 	 */
 	public function addColumnAfter($table, $column, $type, $after)
@@ -60,6 +62,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * @param $column
 	 * @param $type
 	 * @param $before
+	 *
 	 * @return string
 	 */
 	public function addColumnBefore($table, $column, $type, $before)
@@ -89,6 +92,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * @param string $type
 	 * @param mixed $newName
 	 * @param mixed $after
+	 *
 	 * @return string
 	 */
 	public function alterColumn($table, $column, $type, $newName = null, $after = null)
@@ -98,9 +102,9 @@ class MysqlSchema extends \CMysqlSchema
 			$newName = $column;
 		}
 
-		return 'ALTER TABLE ' . $this->quoteTableName($table) . ' CHANGE '
-			. $this->quoteColumnName($column) . ' '
-			. $this->quoteColumnName($newName) . ' '
+		return 'ALTER TABLE '.$this->quoteTableName($table).' CHANGE '
+			. $this->quoteColumnName($column).' '
+			. $this->quoteColumnName($newName).' '
 			. $this->getColumnType($type)
 			. ($after ? ' AFTER '.$this->quoteColumnName($after) : '');
 	}
@@ -109,6 +113,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * @param $table
 	 * @param $columns
 	 * @param $rows
+	 *
 	 * @return mixed
 	 */
 	public function insertAll($table, $columns, $rows)
@@ -165,6 +170,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * @param array  $columns An array of columns.
 	 * @param string $options Any additional SQL to append to the end of the query.
 	 * @param string $engine  The engine the table should use ("InnoDb" or "MyISAM"). Default is "InnoDb".
+	 *
 	 * @return string The full SQL for creating a table.
 	 */
 	public function createTable($table, $columns, $options = null, $engine = 'InnoDb')
@@ -193,6 +199,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * Builds a SQL statement for dropping a DB table if it exists.
 	 *
 	 * @param string $table
+	 *
 	 * @return string
 	 */
 	public function dropTableIfExists($table)
@@ -204,7 +211,8 @@ class MysqlSchema extends \CMysqlSchema
 	 * Returns the SQL for ordering results by column values.
 	 *
 	 * @param string $column
-	 * @param array $values
+	 * @param array  $values
+	 *
 	 * @return string
 	 */
 	public function orderByColumnValues($column, $values)
@@ -227,6 +235,7 @@ class MysqlSchema extends \CMysqlSchema
 	 * @param string $column
 	 * @param string $find
 	 * @param string $replace
+	 *
 	 * @return array
 	 */
 	public function replace($table, $column, $find, $replace)
@@ -237,10 +246,25 @@ class MysqlSchema extends \CMysqlSchema
 	}
 
 	/**
+	 * Quotes a database name for use in a query.
+	 *
+	 * @param $name
+	 *
+	 * @return string
+	 */
+	public function quoteDatabaseName($name)
+	{
+		return '`'.$name.'`';
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
 	 * Returns all table names in the database which start with the tablePrefix.
 	 *
-	 * @access protected
 	 * @param string $schema
+	 *
 	 * @return string
 	 */
 	protected function findTableNames($schema = null)
@@ -254,16 +278,5 @@ class MysqlSchema extends \CMysqlSchema
 		{
 			return parent::findTableNames();
 		}
-	}
-
-	/**
-	 * Quotes a database name for use in a query.
-	 *
-	 * @param $name
-	 * @return string
-	 */
-	public function quoteDatabaseName($name)
-	{
-		return '`'.$name.'`';
 	}
 }

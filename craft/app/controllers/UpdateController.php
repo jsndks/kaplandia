@@ -2,28 +2,51 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * The UpdateController class is a controller that handles various update related tasks such as checking for available
+ * updates and running manual and auto-updates.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * Note that all actions in the controller, except for {@link actionPrepare}, {@link actionBackupDatabase},
+ * {@link actionUpdateDatabase}, {@link actionCleanUp} and {@link actionRollback} require an authenticated Craft session
+ * via {@link BaseController::allowAnonymous}.
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.controllers
+ * @since     1.0
  */
 class UpdateController extends BaseController
 {
-	protected $allowAnonymous = array('actionManualUpdate', 'actionPrepare', 'actionBackupDatabase', 'actionUpdateDatabase', 'actionCleanUp', 'actionRollback');
-
-	// -------------------------------------------
-	//  Auto Updates
-	// -------------------------------------------
+	// Properties
+	// =========================================================================
 
 	/**
-	 * Returns the available updates
+	 * If set to false, you are required to be logged in to execute any of the given controller's actions.
+	 *
+	 * If set to true, anonymous access is allowed for all of the given controller's actions.
+	 *
+	 * If the value is an array of action names, then you must be logged in for any action method except for the ones in
+	 * the array list.
+	 *
+	 * If you have a controller that where the majority of action methods will be anonymous, but you only want require
+	 * login on a few, it's best to use {@link UserSessionService::requireLogin() craft()->userSession->requireLogin()}
+	 * in the individual methods.
+	 *
+	 * @var bool
+	 */
+	protected $allowAnonymous = array('actionPrepare', 'actionBackupDatabase', 'actionUpdateDatabase', 'actionCleanUp', 'actionRollback');
+
+	// Public Methods
+	// =========================================================================
+
+	// Auto Updates
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Returns the available updates.
+	 *
+	 * @return null
 	 */
 	public function actionGetAvailableUpdates()
 	{
@@ -53,6 +76,8 @@ class UpdateController extends BaseController
 
 	/**
 	 * Returns the update info JSON.
+	 *
+	 * @return null
 	 */
 	public function actionGetUpdates()
 	{
@@ -129,12 +154,10 @@ class UpdateController extends BaseController
 		}
 	}
 
-	// -------------------------------------------
-	//  Manual Updates
-	// -------------------------------------------
-
 	/**
+	 * Called during both a manual and auto-update.
 	 *
+	 * @return null
 	 */
 	public function actionPrepare()
 	{
@@ -179,7 +202,9 @@ class UpdateController extends BaseController
 	}
 
 	/**
+	 * Called during an auto-update.
 	 *
+	 * @return null
 	 */
 	public function actionProcessDownload()
 	{
@@ -208,7 +233,9 @@ class UpdateController extends BaseController
 	}
 
 	/**
+	 * Called during an auto-update.
 	 *
+	 * @return null
 	 */
 	public function actionBackupFiles()
 	{
@@ -235,7 +262,9 @@ class UpdateController extends BaseController
 	}
 
 	/**
+	 * Called during an auto-update.
 	 *
+	 * @return null
 	 */
 	public function actionUpdateFiles()
 	{
@@ -262,7 +291,9 @@ class UpdateController extends BaseController
 	}
 
 	/**
+	 * Called during both a manual and auto-update.
 	 *
+	 * @return null
 	 */
 	public function actionBackupDatabase()
 	{
@@ -282,17 +313,26 @@ class UpdateController extends BaseController
 			}
 		}
 
+		$handle = $this->_getFixedHandle($data);
+
 		if (craft()->config->get('backupDbOnUpdate'))
 		{
-			$return = craft()->updates->backupDatabase();
-			if (!$return['success'])
-			{
-				$this->returnJson(array('alive' => true, 'errorDetails' => $return['message'], 'nextStatus' => Craft::t('An error was encountered. Rolling back…'), 'nextAction' => 'update/rollback'));
-			}
+			$plugin = craft()->plugins->getPlugin($handle);
 
-			if (isset($return['dbBackupPath']))
+			// If this a plugin, make sure it actually has new migrations before backing up the database.
+			if ($handle == 'craft' || ($plugin && craft()->migrations->getNewMigrations($plugin)))
 			{
-				$data['dbBackupPath'] = $return['dbBackupPath'];
+				$return = craft()->updates->backupDatabase();
+
+				if (!$return['success'])
+				{
+					$this->returnJson(array('alive' => true, 'errorDetails' => $return['message'], 'nextStatus' => Craft::t('An error was encountered. Rolling back…'), 'nextAction' => 'update/rollback'));
+				}
+
+				if (isset($return['dbBackupPath']))
+				{
+					$data['dbBackupPath'] = $return['dbBackupPath'];
+				}
 			}
 		}
 
@@ -300,7 +340,9 @@ class UpdateController extends BaseController
 	}
 
 	/**
+	 * Called during both a manual and auto-update.
 	 *
+	 * @return null
 	 */
 	public function actionUpdateDatabase()
 	{
@@ -341,6 +383,10 @@ class UpdateController extends BaseController
 
 	/**
 	 * Performs maintenance and clean up tasks after an update.
+	 *
+	 * Called during both a manual and auto-update.
+	 *
+	 * @return null
 	 */
 	public function actionCleanUp()
 	{
@@ -393,7 +439,10 @@ class UpdateController extends BaseController
 	}
 
 	/**
+	 * Can be called during both a manual and auto-update.
 	 *
+	 * @throws Exception
+	 * @return null
 	 */
 	public function actionRollback()
 	{
@@ -437,8 +486,12 @@ class UpdateController extends BaseController
 		$this->returnJson(array('alive' => true, 'finished' => true, 'rollBack' => true));
 	}
 
+	// Private Methods
+	// =========================================================================
+
 	/**
 	 * @param $data
+	 *
 	 * @return bool
 	 */
 	private function _isManualUpdate($data)
@@ -453,6 +506,7 @@ class UpdateController extends BaseController
 
 	/**
 	 * @param $data
+	 *
 	 * @return string
 	 */
 	private function _getFixedHandle($data)

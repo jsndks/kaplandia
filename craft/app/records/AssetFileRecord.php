@@ -2,42 +2,28 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class AssetFileRecord
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @todo Create save function which calls parent::save and then updates the meta data table (keywords, author, etc)
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * TODO: create save function which calls parent::save and then updates the meta data table (keywords, author, etc)
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.records
+ * @since     1.0
  */
 class AssetFileRecord extends BaseRecord
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * @return string
 	 */
 	public function getTableName()
 	{
 		return 'assetfiles';
-	}
-
-	/**
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineAttributes()
-	{
-		return array(
-			'filename'		=> array(AttributeType::String, 'required' => true),
-			'kind'			=> array('column' => ColumnType::Varchar, 'maxLength' => 50, 'required' => true, 'default' => 'unknown'),
-			'width'			=> array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::SmallInt),
-			'height'		=> array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::SmallInt),
-			'size'			=> array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::Int),
-			'dateModified'	=> AttributeType::DateTime
-		);
 	}
 
 	/**
@@ -59,6 +45,24 @@ class AssetFileRecord extends BaseRecord
 	{
 		return array(
 			array('columns' => array('filename', 'folderId'), 'unique' => true),
+		);
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
+	 * @return array
+	 */
+	protected function defineAttributes()
+	{
+		return array(
+			'filename'		=> array(AttributeType::String, 'required' => true),
+			'kind'			=> array('column' => ColumnType::Varchar, 'maxLength' => 50, 'required' => true, 'default' => 'unknown'),
+			'width'			=> array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::SmallInt),
+			'height'		=> array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::SmallInt),
+			'size'			=> array(AttributeType::Number, 'min' => 0, 'column' => ColumnType::Int),
+			'dateModified'	=> AttributeType::DateTime
 		);
 	}
 }

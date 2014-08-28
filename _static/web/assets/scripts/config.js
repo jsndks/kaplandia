@@ -39,7 +39,8 @@ require.config({
         'handlebars': '../vendor/handlebars/handlebars',
         'text': '../vendor/text/text',
         'scrollTo': '../vendor/jquery.scrollTo/jquery.scrollTo',
-        'konamijs': 'lib-thirdparty/konami'
+        'konamijs': 'lib-thirdparty/konami',
+        'lazyload': '../vendor/jquery.lazyload/jquery.lazyload'
     },
 
     shim: {
@@ -50,6 +51,9 @@ require.config({
             exports: 'Handlebars',
         },
         scrollTo: {
+            deps: ['jquery']
+        },
+        lazyload: {
             deps: ['jquery']
         }
     },

@@ -1,28 +1,9 @@
 /*!
- * kaplandia v1.0.0 (dev)
+ * kaplandia v1.0.0
  * kaplandia Front End Build
  *
  * Copyright(c): 2014
- * Build Date: 2014-04-29
+ * Build Date: 2014-08-28
  */
 
-.utlty-isHidden{display:none}
-.utlty-isCollapsed{height:0;overflow:hidden}
-.utlty-isError{border-color:#8b1717;color:#8b1717}
-.utlty-isDisabled{opacity:.6;cursor:pointer}
-.utlty-mbOff{margin-bottom:0}
-.utlty-disBlck{display:block}
-.rays{-webkit-transform:scale(3) translate(0,50px);-moz-transform:scale(3) translate(0,50px);-ms-transform:scale(3) translate(0,50px);-o-transform:scale(3) translate(0,50px);transform:scale(3) translate(0,50px)}
-.cloudScene{display:block}
-.mountain_1{height:413px}
-.mountain_2{height:537px}
-.mountain_3{height:559px}
-.mountain_4{height:269px}
-.mountain_5{height:289px}
-.mainContent{width:60%}
-.btn{padding:13px 52px;font-size:22px;line-height:1}
-.btn_sub:before{content:'- or -';position:absolute;font-size:10px;top:19px;left:-18px;z-index:1;color:#fff}
-.utilNav{float:right;width:auto}
-.utilNav-item,.utilNav-item>a{width:auto}
-.quickLinks{display:block}
-.contentBlock{padding:32px}
+.utlty-isHidden{display:none}.utlty-isCollapsed{height:0;overflow:hidden}.utlty-isError{border-color:#8b1717;color:#8b1717}.utlty-isDisabled{opacity:.6;cursor:pointer}.utlty-mbOff{margin-bottom:0}.utlty-disBlck{display:block}.rays{-webkit-transform:scale(3) translate(0,50px);-moz-transform:scale(3) translate(0,50px);-ms-transform:scale(3) translate(0,50px);-o-transform:scale(3) translate(0,50px);transform:scale(3) translate(0,50px)}.cloudScene{display:block}.mountain_1{height:413px}.mountain_2{height:537px}.mountain_3{height:559px}.mountain_4{height:269px}.mountain_5{height:289px}.mainContent{width:60%}.btn{padding:13px 52px;font-size:22px;line-height:1}.btn_sub:before{content:'- or -';position:absolute;font-size:10px;top:19px;left:-18px;z-index:1;color:#fff}.utilNav{float:right;width:auto}.utilNav-item,.utilNav-item>a{width:auto}.quickLinks{display:block}.contentBlock{padding:32px}

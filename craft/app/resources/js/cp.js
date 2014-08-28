@@ -1,11 +1,9 @@
 /**
- * Craft by Pixel & Tonic
- *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.resources
  */
 
 (function($) {
@@ -18,6 +16,8 @@ var CP = Garnish.Base.extend(
 {
 	$alerts: null,
 	$header: null,
+	$headerActionsList: null,
+	$siteName: null,
 	$nav: null,
 
 	$overflowNavMenuItem: null,
@@ -51,6 +51,8 @@ var CP = Garnish.Base.extend(
 		// Find all the key elements
 		this.$alerts = $('#alerts');
 		this.$header = $('#header');
+		this.$headerActionsList = this.$header.find('#header-actions');
+		this.$siteName = this.$header.find('h2');
 		this.$nav = $('#nav');
 		this.$notificationWrapper = $('#notifications-wrapper');
 		this.$notificationContainer = $('#notifications');
@@ -58,6 +60,10 @@ var CP = Garnish.Base.extend(
 		this.$content = $('#content');
 		this.$collapsibleTables = this.$content.find('table.collapsible');
 		this.$upgradePromo = $('#upgradepromo > a');
+
+		// Keep the site name contained
+		this.onActionItemListResize();
+		this.addListener(this.$headerActionsList, 'resize', 'onActionItemListResize');
 
 		// Find all the nav items
 		this.navItems = [];
@@ -156,6 +162,40 @@ var CP = Garnish.Base.extend(
 			});
 		}
 
+		Garnish.$win.on('load', $.proxy(function()
+		{
+			// Look for forms that we should watch for changes on
+			this.$confirmUnloadForms = $('form[data-confirm-unload="1"]');
+
+			if (this.$confirmUnloadForms.length)
+			{
+				this.initialFormValues = [];
+
+				for (var i = 0; i < this.$confirmUnloadForms.length; i++)
+				{
+					var $form = $(this.$confirmUnloadForms);
+					this.initialFormValues[i] = $form.serialize();
+					this.addListener($form, 'submit', function()
+					{
+						this.removeListener(Garnish.$win, 'beforeunload');
+					});
+				}
+
+				this.addListener(Garnish.$win, 'beforeunload', function()
+				{
+					for (var i = 0; i < this.$confirmUnloadForms.length; i++)
+					{
+						var newFormValue = $(this.$confirmUnloadForms[i]).serialize();
+
+						if (this.initialFormValues[i] != newFormValue)
+						{
+							return Craft.t('Any changes will be lost if you leave this page.');
+						}
+					}
+				});
+			}
+		}, this));
+
 		this.addListener(this.$upgradePromo, 'click', 'showUpgradeModal');
 
 		var $wrongEditionModalContainer = $('#wrongedition-modal');
@@ -179,6 +219,11 @@ var CP = Garnish.Base.extend(
 
 		// Update any responsive tables
 		this.updateResponsiveTables();
+	},
+
+	onActionItemListResize: function()
+	{
+		this.$siteName.css('max-width', 'calc(100% - '+(this.$headerActionsList.width()+14)+'px)');
 	},
 
 	updateResponsiveNav: function()
@@ -501,7 +546,7 @@ var CP = Garnish.Base.extend(
 	displayUpdateInfo: function(info)
 	{
 		// Remove the existing header badge, if any
-		$('#header-actions > li.updates').remove();
+		this.$headerActionsList.children('li.updates').remove();
 
 		if (info.total)
 		{
@@ -519,7 +564,7 @@ var CP = Garnish.Base.extend(
 				'<a data-icon="newstamp" href="'+Craft.getUrl('updates')+'" title="'+updateText+'">' +
 					'<span>'+info.total+'</span>' +
 				'</a>' +
-			'</li>').prependTo($('#header-actions'));
+			'</li>').prependTo(this.$headerActionsList);
 
 			// Footer link
 			$('#footer-updates').text(updateText);
@@ -664,7 +709,7 @@ var TaskProgressIcon = Garnish.Base.extend(
 
 	init: function()
 	{
-		this.$li = $('<li/>').prependTo($('#header-actions'));
+		this.$li = $('<li/>').prependTo(Craft.cp.$headerActionsList);
 		this.$a = $('<a id="taskicon"/>').appendTo(this.$li);
 
 		this._canvasSupported = !!(document.createElement('canvas').getContext);

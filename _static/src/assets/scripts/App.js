@@ -7,6 +7,7 @@ define(function(require, exports, module) { // jshint ignore:line
     var RaysView = require('./views/RaysView');
     var MapView = require('views/Mapview');
     var ScrollToView = require('views/ScrollToView');
+    var LazyLoadView = require('views/LazyLoadView');
 
     /**
      * Initial application setup. Runs once upon every page load.
@@ -32,6 +33,7 @@ define(function(require, exports, module) { // jshint ignore:line
         this.raysView = new RaysView($('#js-rays'));
         this.mapView = new MapView($('#map'));
         this.scrollToView = new ScrollToView($('.js-quickLinks'));
+        this.lazyLoadView = new LazyLoadView($('.js-lazyload'));
     };
 
     module.exports = App;

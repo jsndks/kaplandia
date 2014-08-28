@@ -2,35 +2,32 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class BaseOptionsFieldType
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.fieldtypes
+ * @since     1.0
  */
 abstract class BaseOptionsFieldType extends BaseFieldType
 {
-	protected $multi = false;
-	private $_options;
+	// Properties
+	// =========================================================================
 
 	/**
-	 * Defines the settings.
-	 *
-	 * @access protected
-	 * @return array
+	 * @var bool
 	 */
-	protected function defineSettings()
-	{
-		return array(
-			'options' => array(AttributeType::Mixed, 'default' => array())
-		);
-	}
+	protected $multi = false;
+
+	/**
+	 * @var
+	 */
+	private $_options;
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns the content attribute config.
@@ -63,8 +60,6 @@ abstract class BaseOptionsFieldType extends BaseFieldType
 			// Give it a default row
 			$options = array(array('label' => '', 'value' => ''));
 		}
-
-		$class = $this->getClassHandle();
 
 		return craft()->templates->renderMacro('_includes/forms', 'editableTableField', array(
 			array(
@@ -99,6 +94,7 @@ abstract class BaseOptionsFieldType extends BaseFieldType
 	 * Preps the settings before they're saved to the database.
 	 *
 	 * @param array $settings
+	 *
 	 * @return array
 	 */
 	public function prepSettings($settings)
@@ -116,6 +112,7 @@ abstract class BaseOptionsFieldType extends BaseFieldType
 	 * Preps the field value for use.
 	 *
 	 * @param mixed $value
+	 *
 	 * @return mixed
 	 */
 	public function prepValue($value)
@@ -160,19 +157,31 @@ abstract class BaseOptionsFieldType extends BaseFieldType
 		return $value;
 	}
 
+	// Protected Methods
+	// =========================================================================
+
 	/**
 	 * Returns the label for the Options setting.
 	 *
-	 * @abstract
-	 * @access protected
 	 * @return string
 	 */
 	abstract protected function getOptionsSettingsLabel();
 
 	/**
+	 * Defines the settings.
+	 *
+	 * @return array
+	 */
+	protected function defineSettings()
+	{
+		return array(
+			'options' => array(AttributeType::Mixed, 'default' => array())
+		);
+	}
+
+	/**
 	 * Returns the field options, accounting for the old school way of saving them.
 	 *
-	 * @access protected
 	 * @return array
 	 */
 	protected function getOptions()
@@ -204,10 +213,27 @@ abstract class BaseOptionsFieldType extends BaseFieldType
 	}
 
 	/**
+	 * Returns the field options, with labels run through Craft::t().
+	 *
+	 * @return array
+	 */
+	protected function getTranslatedOptions()
+	{
+		$options = $this->getOptions();
+
+		foreach ($options as &$option)
+		{
+			$option['label'] = Craft::t($option['label']);
+		}
+
+		return $options;
+	}
+
+	/**
 	 * Returns an option's label by its value.
 	 *
-	 * @access protected
-	 * @param stirng $value
+	 * @param string $value
+	 *
 	 * @return string
 	 */
 	protected function getOptionLabel($value)

@@ -6,7 +6,7 @@ html, body { height: 100%; }
 
 #login-form .field { margin: 10px 0; }
 
-#forgot-password { position: relative; z-index: 1; display: block; font-style: normal; font-size: 11px; color: #8e98a4; }
+#forgot-password { position: relative; z-index: 1; display: block; font-style: normal; font-size: 11px; color: #8f98a3; }
 body.ltr #forgot-password { float: right; }
 body.rtl #forgot-password { float: left; }
 
@@ -14,9 +14,9 @@ body.rtl #forgot-password { float: left; }
 
 #login-form .buttons { position: relative; }
 
-#login-form #ssl-icon { position: absolute; z-index: 1; line-height: 30px; width: 2.2em; color: #fff; text-align: center; cursor: pointer; }
-body.ltr #login-form #ssl-icon { left: 5px; }
-body.rtl #login-form #ssl-icon { right: 5px; }
+#login-form #ssl-icon { position: absolute; top: 0; z-index: 1; line-height: 30px; width: 2.2em; color: #fff; text-align: center; cursor: pointer; }
+body.ltr #login-form #ssl-icon { left: 0; }
+body.rtl #login-form #ssl-icon { right: 0; }
 
 #login-form #ssl-icon.disabled { opacity: 0.75; cursor: default; }
 

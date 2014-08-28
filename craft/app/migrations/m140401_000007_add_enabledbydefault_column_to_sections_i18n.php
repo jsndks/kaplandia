@@ -2,16 +2,6 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
- *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
- * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
- * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
  * The class name is the UTC timestamp in the format of mYYMMDD_HHMMSS_migrationName
  */
 class m140401_000007_add_enabledbydefault_column_to_sections_i18n extends BaseMigration

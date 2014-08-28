@@ -2,27 +2,40 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * UsersService provides APIs for managing users.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * An instance of UsersService is globally accessible in Craft via {@link WebApp::users `craft()->users`}.
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.services
+ * @since     1.0
  */
 class UsersService extends BaseApplicationComponent
 {
-	private $_usersById;
+	// Properties
+	// =========================================================================
 
 	/**
-	 * Gets a user by their ID.
+	 * @var
+	 */
+	private $_usersById;
+
+	// Public Methods
+	// =========================================================================
+
+	/**
+	 * Returns a user by their ID.
 	 *
-	 * @param $userId
-	 * @return UserModel|null
+	 * ```php
+	 * $user = craft()->users->getUserById($userId);
+	 * ```
+	 *
+	 * @param int $userId The user’s ID.
+	 *
+	 * @return UserModel|null The user with the given ID, or `null` if a user could not be found.
 	 */
 	public function getUserById($userId)
 	{
@@ -44,10 +57,15 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Gets a user by their username or email.
+	 * Returns a user by their username or email.
 	 *
-	 * @param string $usernameOrEmail
-	 * @return UserModel|null
+	 * ```php
+	 * $user = craft()->users->getUserByUsernameOrEmail($loginName);
+	 * ```
+	 *
+	 * @param string $usernameOrEmail The user’s username or email.
+	 *
+	 * @return UserModel|null The user with the given username/email, or `null` if a user could not be found.
 	 */
 	public function getUserByUsernameOrEmail($usernameOrEmail)
 	{
@@ -60,58 +78,103 @@ class UsersService extends BaseApplicationComponent
 		{
 			return UserModel::populateModel($userRecord);
 		}
+
+		return null;
 	}
 
 	/**
-	 * Gets a user by a verification code and their uid.
+	 * Returns a user by their UID.
 	 *
-	 * @param        $code
-	 * @param        $uid
-	 * @return UserModel|null
+	 * ```php
+	 * $user = craft()->users->getUserByUid($userUid);
+	 * ```
+	 *
+	 * @param int $uid The user’s UID.
+	 *
+	 * @return UserModel|null The user with the given UID, or `null` if a user could not be found.
 	 */
-	public function getUserByVerificationCodeAndUid($code, $uid)
+	public function getUserByUid($uid)
 	{
 		$userRecord = UserRecord::model()->findByAttributes(array(
 			'uid' => $uid
 		));
 
-		if ($userRecord && $userRecord->verificationCodeIssuedDate)
+		if ($userRecord)
 		{
-			$user = UserModel::populateModel($userRecord);
-
-			// Fire an 'onBeforeVerifyUser' event
-			$this->onBeforeVerifyUser(new Event($this, array(
-				'user' => $user
-			)));
-
-			$minCodeIssueDate = DateTimeHelper::currentUTCDateTime();
-			$duration = new DateInterval(craft()->config->get('verificationCodeDuration'));
-			$minCodeIssueDate->sub($duration);
-
-			if (
-				$userRecord->verificationCodeIssuedDate > $minCodeIssueDate &&
-				craft()->security->checkPassword($code, $userRecord->verificationCode)
-			)
-			{
-				return $user;
-			}
-			else
-			{
-				Craft::log('Found a user with UID:'.$uid.', but the verification code given: '.$code.' has either expired or does not match the hash in the database.', LogLevel::Warning);
-			}
-		}
-		else
-		{
-			Craft::log('Could not find a user with UID:'.$uid.'.', LogLevel::Warning);
+			return UserModel::populateModel($userRecord);
 		}
 
 		return null;
 	}
 
 	/**
-	 * Returns the "Client" account if they're running Craft Client.
+	 * Returns whether a verification code is valid for the given user.
 	 *
-	 * @return UserModel|null
+	 * This method first checks if the code has expired past the
+	 * [verificationCodeDuration](http://buildwithcraft.com/docs/config-settings#verificationCodeDuration) config
+	 * setting. If it is still valid, then, the checks the validity of the contents of the code.
+	 *
+	 * @param UserModel $user The user to check the code for.
+	 * @param string    $code The verification code to check for.
+	 *
+	 * @return bool Whether the code is still valid.
+	 */
+	public function isVerificationCodeValidForUser(UserModel $user, $code)
+	{
+		$valid = false;
+		$userRecord = $this->_getUserRecordById($user->id);
+
+		if ($userRecord)
+		{
+			$minCodeIssueDate = DateTimeHelper::currentUTCDateTime();
+			$duration = new DateInterval(craft()->config->get('verificationCodeDuration'));
+			$minCodeIssueDate->sub($duration);
+
+			$valid = $userRecord->verificationCodeIssuedDate > $minCodeIssueDate;
+
+			if (!$valid)
+			{
+				// It's expired, go ahead and remove it from the record so if they click the link again, it'll throw an
+				// Exception.
+				$userRecord = $this->_getUserRecordById($user->id);
+				$userRecord->verificationCodeIssuedDate = null;
+				$userRecord->verificationCode = null;
+				$userRecord->save();
+			}
+			else
+			{
+				if (craft()->security->checkPassword($code, $userRecord->verificationCode))
+				{
+					$valid = true;
+				}
+				else
+				{
+					$valid = false;
+					Craft::log('The verification code ('.$code.') given for userId: '.$user->id.' does not match the hash in the database.', LogLevel::Warning);
+				}
+			}
+		}
+		else
+		{
+			Craft::log('Could not find a user with id:'.$user->id.'.', LogLevel::Warning);
+		}
+
+		return $valid;
+	}
+
+	/**
+	 * Returns the “Client” user account, if it has been created yet.
+	 *
+	 * An exception will be thrown if this function is called from Craft Personal or Pro.
+	 *
+	 * ```php
+	 * if (craft()->getEdition() == Craft::Client)
+	 * {
+	 *     $clientAccount = craft()->users->getClient();
+	 * }
+	 * ```
+	 *
+	 * @return UserModel|null The “Client” user account, or `null` if it hasn’t been created yet.
 	 */
 	public function getClient()
 	{
@@ -124,11 +187,29 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Saves a user, or registers a new one.
+	 * Saves a new or existing user.
 	 *
-	 * @param  UserModel $user
+	 * ```php
+	 * $user = new UserModel();
+	 * $user->username  = 'tommy';
+	 * $user->firstName = 'Tom';
+	 * $user->lastName  = 'Foolery';
+	 * $user->email     = 'tom@thefoolery.com';
+	 *
+	 * $user->getContent()->birthYear = 1812;
+	 *
+	 * $success = craft()->users->saveUser($entry);
+	 *
+	 * if (!$success)
+	 * {
+	 *     Craft::log('Couldn’t save the user "'.$user->username.'"', LogLevel::Error);
+	 * }
+	 * ```
+	 *
+	 * @param UserModel $user The user to be saved.
+	 *
 	 * @throws \Exception
-	 * @return bool
+	 * @return bool Whether the user was saved successfully.
 	 */
 	public function saveUser(UserModel $user)
 	{
@@ -216,7 +297,8 @@ class UsersService extends BaseApplicationComponent
 
 					if ($user->unverifiedEmail)
 					{
-						// Temporarily set the unverified email on the UserModel so the verification email goes to the right place
+						// Temporarily set the unverified email on the UserModel so the verification email goes to the
+						// right place
 						$originalEmail = $user->email;
 						$user->email = $user->unverifiedEmail;
 
@@ -255,6 +337,11 @@ class UsersService extends BaseApplicationComponent
 						}
 					}
 
+					if ($transaction !== null)
+					{
+						$transaction->commit();
+					}
+
 					// Fire an 'onSaveUser' event
 					$this->onSaveUser(new Event($this, array(
 						'user'      => $user,
@@ -267,11 +354,6 @@ class UsersService extends BaseApplicationComponent
 						$this->onSaveProfile(new Event($this, array(
 							'user' => $user
 						)));
-					}
-
-					if ($transaction !== null)
-					{
-						$transaction->commit();
 					}
 
 					return true;
@@ -295,8 +377,9 @@ class UsersService extends BaseApplicationComponent
 	 * Saves a user's profile.
 	 *
 	 * @param UserModel $user
+	 *
+	 * @deprecated Deprecated in 2.0. Use {@link saveUser()} instead.
 	 * @return bool
-	 * @deprecated Deprecated in 2.0.
 	 */
 	public function saveProfile(UserModel $user)
 	{
@@ -308,7 +391,9 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onSaveProfile' event.
 	 *
 	 * @param Event $event
-	 * @deprecated Deprecated in 2.0.
+	 *
+	 * @deprecated Deprecated in 2.0. Use {@link onSaveUser() `users.onSaveUser`} instead.
+	 * @return null
 	 */
 	public function onSaveProfile(Event $event)
 	{
@@ -317,7 +402,13 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Sends an activation email
+	 * Sends a new account activation email for a user, regardless of their status.
+	 *
+	 * A new verification code will generated for the user overwriting any existing one.
+	 *
+	 * @param UserModel $user The user to send the activation email to.
+	 *
+	 * @return bool Whether the email was sent successfully.
 	 */
 	public function sendActivationEmail(UserModel $user)
 	{
@@ -331,23 +422,25 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Crop and save a user's photo by coordinates for a given user model.
+	 * Crops and saves a user’s photo.
 	 *
-	 * @param $fileName
-	 * @param Image $image
-	 * @param UserModel $user
-	 * @return bool
+	 * @param string    $fileName The name of the file.
+	 * @param Image     $image    The image.
+	 * @param UserModel $user     The user.
+	 *
 	 * @throws \Exception
+	 * @return bool Whether the photo was saved successfully.
 	 */
 	public function saveUserPhoto($fileName, Image $image, UserModel $user)
 	{
-		$userPhotoFolder = craft()->path->getUserPhotosPath().$user->username.'/';
+		$userName = IOHelper::cleanFilename($user->username);
+		$userPhotoFolder = craft()->path->getUserPhotosPath().$userName.'/';
 		$targetFolder = $userPhotoFolder.'original/';
 
 		IOHelper::ensureFolderExists($userPhotoFolder);
 		IOHelper::ensureFolderExists($targetFolder);
 
-		$targetPath = $targetFolder . $fileName;
+		$targetPath = $targetFolder.$fileName;
 
 		$result = $image->saveAs($targetPath);
 
@@ -367,10 +460,11 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Delete a user's photo.
+	 * Deletes a user's photo.
 	 *
-	 * @param UserModel $user
-	 * @return void
+	 * @param UserModel $user The user.
+	 *
+	 * @return null
 	 */
 	public function deleteUserPhoto(UserModel $user)
 	{
@@ -388,10 +482,11 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Sends a "forgot password" email.
+	 * Sends a “Forgot Password” email to a given user.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the email was sent successfully.
 	 */
 	public function sendForgotPasswordEmail(UserModel $user)
 	{
@@ -406,10 +501,11 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Changes a user's password.
+	 * Changes a user’s password.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the user’s new password was saved successfully.
 	 */
 	public function changePassword(UserModel $user)
 	{
@@ -429,9 +525,10 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Handles a successful login for a user.
 	 *
-	 * @param UserModel $user
-	 * @param           $sessionToken
-	 * @return bool
+	 * @param UserModel $user         The user.
+	 * @param string    $sessionToken The session token.
+	 *
+	 * @return string The session’s UID.
 	 */
 	public function handleSuccessfulLogin(UserModel $user, $sessionToken)
 	{
@@ -457,8 +554,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Handles an invalid login for a user.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the user’s record was updated successfully.
 	 */
 	public function handleInvalidLogin(UserModel $user)
 	{
@@ -497,8 +595,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Activates a user, bypassing email verification.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the user was activated successfully.
 	 */
 	public function activateUser(UserModel $user)
 	{
@@ -518,6 +617,12 @@ class UsersService extends BaseApplicationComponent
 		if ($user->unverifiedEmail)
 		{
 			$userRecord->email = $user->unverifiedEmail;
+
+			if (craft()->config->get('useEmailAsUsername'))
+			{
+				$userRecord->username = $user->unverifiedEmail;
+			}
+
 			$userRecord->unverifiedEmail = null;
 		}
 
@@ -539,8 +644,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Unlocks a user, bypassing the cooldown phase.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the user was unlocked successfully.
 	 */
 	public function unlockUser(UserModel $user)
 	{
@@ -573,8 +679,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Suspends a user.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the user was suspended successfully.
 	 */
 	public function suspendUser(UserModel $user)
 	{
@@ -605,8 +712,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Unsuspends a user.
 	 *
-	 * @param UserModel $user
-	 * @return bool
+	 * @param UserModel $user The user.
+	 *
+	 * @return bool Whether the user was unsuspended successfully.
 	 */
 	public function unsuspendUser(UserModel $user)
 	{
@@ -637,9 +745,10 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Deletes a user.
 	 *
-	 * @param UserModel $user
+	 * @param UserModel $user The user.
+	 *
 	 * @throws \Exception
-	 * @return bool
+	 * @return bool Whether the user was deleted successfully.
 	 */
 	public function deleteUser(UserModel $user)
 	{
@@ -703,10 +812,11 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Shuns a message for a user.
 	 *
-	 * @param int      $userId
-	 * @param string   $message
-	 * @param DateTime $expiryDate
-	 * @return bool
+	 * @param int      $userId     The user’s ID.
+	 * @param string   $message    The message to be shunned.
+	 * @param DateTime $expiryDate When the message should be un-shunned. Defaults to `null` (never un-shun).
+	 *
+	 * @return bool Whether the message was shunned successfully.
 	 */
 	public function shunMessageForUser($userId, $message, $expiryDate = null)
 	{
@@ -730,11 +840,12 @@ class UsersService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Unshuns a message for a user.
+	 * Un-shuns a message for a user.
 	 *
-	 * @param int      $userId
-	 * @param string   $message
-	 * @return bool
+	 * @param int    $userId  The user’s ID.
+	 * @param string $message The message to un-shun.
+	 *
+	 * @return bool Whether the message was un-shunned successfully.
 	 */
 	public function unshunMessageForUser($userId, $message)
 	{
@@ -749,9 +860,10 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Returns whether a message is shunned for a user.
 	 *
-	 * @param int      $userId
-	 * @param string   $message
-	 * @return bool
+	 * @param int    $userId  The user’s ID.
+	 * @param string $message The message to check.
+	 *
+	 * @return bool Whether the user has shunned the message.
 	 */
 	public function hasUserShunnedMessage($userId, $message)
 	{
@@ -775,8 +887,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Sets a new verification code on the user's record.
 	 *
-	 * @param UserModel $user
-	 * @return string
+	 * @param UserModel $user The user.
+	 *
+	 * @return string The user’s brand new verification code.
 	 */
 	public function setVerificationCodeOnUser(UserModel $user)
 	{
@@ -790,9 +903,10 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Validates a given password against a hash.
 	 *
-	 * @param $hash
-	 * @param $password
-	 * @return bool
+	 * @param string $hash     The hashed password.
+	 * @param string $password The submitted password.
+	 *
+	 * @return bool Whether the submitted password matches the hashed password.
 	 */
 	public function validatePassword($hash, $password)
 	{
@@ -804,12 +918,45 @@ class UsersService extends BaseApplicationComponent
 		return false;
 	}
 
-	// Events
+	/**
+	 * Deletes any pending users that have shown zero sense of urgency and are just taking up space.
+	 *
+	 * This method will check the
+	 * [purgePendingUsersDuration](http://buildwithcraft.com/docs/config-settings#purgePendingUsersDuration) config
+	 * setting, and if it is set to a valid duration, it will delete any user accounts that were created that duration
+	 * ago, and have still not activated their account.
+	 *
+	 * @return null
+	 */
+	public function purgeExpiredPendingUsers()
+	{
+		if (($duration = craft()->config->get('purgePendingUsersDuration')) !== false)
+		{
+			$interval = new DateInterval($duration);
+			$expire = DateTimeHelper::currentUTCDateTime();
+			$pastTimeStamp = $expire->sub($interval)->getTimestamp();
+			$pastTime = DateTimeHelper::formatTimeForDb($pastTimeStamp);
+
+			$ids = craft()->db->createCommand()->select('id')
+				->from('users')
+				->where('status = :status AND verificationCodeIssuedDate < :pastTime', array('status' => 'pending', 'pastTime' => $pastTime))
+				->queryColumn();
+
+			$affectedRows = craft()->db->createCommand()->delete('elements', array('in', 'id', $ids));
+
+			if ($affectedRows > 0)
+			{
+				Craft::log('Just deleted '.$affectedRows.' pending users from the users table, because the were more than '.$duration.' old', LogLevel::Info, true);
+			}
+		}
+	}
 
 	/**
 	 * Fires an 'onBeforeSaveUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeSaveUser(Event $event)
 	{
@@ -820,6 +967,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onSaveUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onSaveUser(Event $event)
 	{
@@ -830,6 +979,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onBeforeVerifyUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeVerifyUser(Event $event)
 	{
@@ -840,6 +991,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onBeforeActivateUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeActivateUser(Event $event)
 	{
@@ -850,6 +1003,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onActivateUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onActivateUser(Event $event)
 	{
@@ -860,6 +1015,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onBeforeUnlockUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeUnlockUser(Event $event)
 	{
@@ -870,6 +1027,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onUnlockUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onUnlockUser(Event $event)
 	{
@@ -880,6 +1039,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onBeforeSuspendUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeSuspendUser(Event $event)
 	{
@@ -890,6 +1051,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onSuspendUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onSuspendUser(Event $event)
 	{
@@ -900,6 +1063,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onBeforeUnsuspendUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeUnsuspendUser(Event $event)
 	{
@@ -910,6 +1075,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onUnsuspendUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onUnsuspendUser(Event $event)
 	{
@@ -920,6 +1087,8 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onBeforeDeleteUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeDeleteUser(Event $event)
 	{
@@ -930,21 +1099,24 @@ class UsersService extends BaseApplicationComponent
 	 * Fires an 'onDeleteUser' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onDeleteUser(Event $event)
 	{
 		$this->raiseEvent('onDeleteUser', $event);
 	}
 
-	// Private stuff
+	// Private Methods
+	// =========================================================================
 
 	/**
 	 * Gets a user record by its ID.
 	 *
-	 * @access private
 	 * @param int $userId
-	 * @return UserRecord
+	 *
 	 * @throws Exception
+	 * @return UserRecord
 	 */
 	private function _getUserRecordById($userId)
 	{
@@ -961,8 +1133,8 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Sets a user record up for a new verification code without saving it.
 	 *
-	 * @access private
 	 * @param  UserRecord $userRecord
+	 *
 	 * @return string
 	 */
 	private function _setVerificationCodeOnUserRecord(UserRecord $userRecord)
@@ -979,6 +1151,7 @@ class UsersService extends BaseApplicationComponent
 	 * Determines if a user is within their invalid login window.
 	 *
 	 * @param UserRecord $userRecord
+	 *
 	 * @return bool
 	 */
 	private function _isUserInsideInvalidLoginWindow(UserRecord $userRecord)
@@ -998,9 +1171,9 @@ class UsersService extends BaseApplicationComponent
 	/**
 	 * Sets a user record up for a new password without saving it.
 	 *
-	 * @access private
-	 * @param UserModel $user
+	 * @param UserModel  $user
 	 * @param UserRecord $userRecord
+	 *
 	 * @return bool
 	 */
 	private function _setPasswordOnUserRecord(UserModel $user, UserRecord $userRecord)
@@ -1014,7 +1187,11 @@ class UsersService extends BaseApplicationComponent
 			$hash = craft()->security->hashPassword($user->newPassword);
 
 			$userRecord->password = $user->password = $hash;
-			$userRecord->status = $user->status = UserStatus::Active;
+
+			if (!$user->unverifiedEmail)
+			{
+				$userRecord->status = $user->status = UserStatus::Active;
+			}
 
 			$userRecord->invalidLoginWindowStart = null;
 			$userRecord->invalidLoginCount = $user->invalidLoginCount = null;

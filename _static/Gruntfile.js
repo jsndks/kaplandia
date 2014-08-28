@@ -347,7 +347,7 @@ module.exports = function(grunt) {
     });
 
     // Default task. Run with `grunt`.
-    grunt.registerTask('default', ['handlebars', 'sass', 'lint', 'build', 'watch']);
+    grunt.registerTask('default', ['handlebars', 'sass', 'build', 'watch']);
 
     // Install task. Handles tasks that should happen right after npm and bower
     // modules are installed or updated. Run with `grunt install`.

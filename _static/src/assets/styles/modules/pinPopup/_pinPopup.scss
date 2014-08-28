@@ -1,6 +1,65 @@
 /* ---------------------------------------------------------------------
  Pin Popup
 ------------------------------------------------------------------------ */
-.pinPopup > * {
+// .pinPopup > * {
+//     margin-bottom: 12px;
+// }
+
+.pinPopup .extra {
+    display: none;
+}
+
+// New
+
+.pinPopup {
+    text-align: center;
+    font-weight: 300;
+}
+
+.pinPopup-hd {
+    padding-bottom: 6px;
+    border-bottom: 1px solid #7f7f7f;
+}
+
+.leaflet-container h2.pinPopup-hd-title {
+    font-size: 18px;
+    color: #c07635;
+    margin: 3px 0;
+    text-transform: uppercase;
+}
+
+.leaflet-container.dark a.pinPopup-hd-link {
+    text-decoration: none;
+    font-style: italic;
+    font-size: 14px;
+    color: #6d3b0f;
+    font-weight: 400;
+}
+
+.pinPopup-hd-desc {
+    text-decoration: none;
+    font-size: 14px;
+    color: #6d3b0f;
+    font-weight: 400;
+}
+
+.pinPopup-bd {
+    padding-top: 16px;
+}
+
+.pinPopup-bd-title {
+    margin: 3px 0;
+    font-size: 22px;
+    margin-bottom: 6px;
+}
+
+.pinPopup-bd-sub {
+    font-size: 14px;
     margin-bottom: 12px;
+}
+
+.pinPopup-bd-date {
+    font-size: 16px;
+    color: #b75b85;
+    font-weight: 400;
 }

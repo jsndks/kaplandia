@@ -1,0 +1,14 @@
+/* ---------------------------------------------------------------------
+ pagination
+------------------------------------------------------------------------ */
+.paginateion {
+    padding: 50px 0;
+}
+
+.paginateion > a:first-child {
+    float: left;
+}
+
+.paginateion > a:last-child {
+    float: right;
+}

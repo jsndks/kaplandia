@@ -2,21 +2,19 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class CraftTwigExtension
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.etc.templating.twigextensions
+ * @since     2.0
  */
 class CraftTwigExtension extends \Twig_Extension
 {
-	private $_classMethods;
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns the token parser instances to add to the existing list.
@@ -62,8 +60,9 @@ class CraftTwigExtension extends \Twig_Extension
 
 		return array(
 			'currency'           => new \Twig_Filter_Function('\Craft\craft()->numberFormatter->formatCurrency'),
+			'date'               => new \Twig_Filter_Method($this, 'dateFilter', array('needs_environment' => true)),
 			'datetime'           => new \Twig_Filter_Function('\Craft\craft()->dateFormatter->formatDateTime'),
-			'filesize'	         => new \Twig_Filter_Function('\Craft\craft()->formatter->formatSize'),
+			'filesize'           => new \Twig_Filter_Function('\Craft\craft()->formatter->formatSize'),
 			'filter'             => new \Twig_Filter_Function('array_filter'),
 			'group'              => new \Twig_Filter_Method($this, 'groupFilter'),
 			'indexOf'            => new \Twig_Filter_Method($this, 'indexOfFilter'),
@@ -92,6 +91,7 @@ class CraftTwigExtension extends \Twig_Extension
 	 *
 	 * @param array $arr
 	 * @param mixed $exclude
+	 *
 	 * @return array
 	 */
 	public function withoutFilter($arr, $exclude)
@@ -115,9 +115,10 @@ class CraftTwigExtension extends \Twig_Extension
 	}
 
 	/**
-	 * Parses a string for refernece tags.
+	 * Parses a string for reference tags.
 	 *
 	 * @param string $str
+	 *
 	 * @return \Twig_Markup
 	 */
 	public function parseRefsFilter($str)
@@ -127,11 +128,13 @@ class CraftTwigExtension extends \Twig_Extension
 	}
 
 	/**
-	 * Replacecs Twig's |replace filter, adding support for passing in separate search and replace arrays.
+	 * Replaces Twig's |replace filter, adding support for passing in separate
+	 * search and replace arrays.
 	 *
 	 * @param mixed $str
 	 * @param mixed $search
 	 * @param mixed $replace
+	 *
 	 * @return mixed
 	 */
 	public function replaceFilter($str, $search, $replace = null)
@@ -149,10 +152,44 @@ class CraftTwigExtension extends \Twig_Extension
 	}
 
 	/**
+	 * Extending Twig's |date filter so we can run any translations on the output.
+	 *
+	 * @param \Twig_Environment $env
+	 * @param                   $date
+	 * @param null              $format
+	 * @param null              $timezone
+	 *
+	 * @return mixed|string
+	 */
+	public function dateFilter(\Twig_Environment $env, $date, $format = null, $timezone = null)
+	{
+		// Let Twig do it's thing.
+		$value = \twig_date_format_filter($env, $date, $format, $timezone);
+
+		// Get the "words".  Split on anything that is not a unicode letter or number.
+		preg_match_all('/[\p{L}\p{N}]+/u', $value, $words);
+
+		if ($words && isset($words[0]) && count($words[0]) > 0)
+		{
+			foreach ($words[0] as $word)
+			{
+				// Translate and swap out.
+				$translatedWord = Craft::t($word);
+				$value = str_replace($word, $translatedWord, $value);
+			}
+		}
+
+		// Return the translated value.
+		return $value;
+
+	}
+
+	/**
 	 * Groups an array by a common property.
 	 *
-	 * @param array $arr
+	 * @param array  $arr
 	 * @param string $item
+	 *
 	 * @return array
 	 */
 	public function groupFilter($arr, $item)
@@ -175,6 +212,7 @@ class CraftTwigExtension extends \Twig_Extension
 	 *
 	 * @param mixed $haystack
 	 * @param mixed $needle
+	 *
 	 * @return int
 	 */
 	public function indexOfFilter($haystack, $needle)
@@ -215,6 +253,7 @@ class CraftTwigExtension extends \Twig_Extension
 	 * Parses text through Markdown.
 	 *
 	 * @param string $str
+	 *
 	 * @return \Twig_Markup
 	 */
 	public function markdownFilter($str)
@@ -250,7 +289,7 @@ class CraftTwigExtension extends \Twig_Extension
 	}
 
 	/**
-	 * Returns getHeadHtml() wrapped in a Twig_Markup object.
+	 * Returns getHeadHtml() wrapped in a \Twig_Markup object.
 	 *
 	 * @return \Twig_Markup
 	 */
@@ -261,7 +300,7 @@ class CraftTwigExtension extends \Twig_Extension
 	}
 
 	/**
-	 * Returns getFootHtml() wrapped in a Twig_Markup object.
+	 * Returns getFootHtml() wrapped in a \Twig_Markup object.
 	 *
 	 * @return \Twig_Markup
 	 */
@@ -275,6 +314,7 @@ class CraftTwigExtension extends \Twig_Extension
 	 * Shuffles an array.
 	 *
 	 * @param mixed $arr
+	 *
 	 * @return mixed
 	 */
 	public function shuffleFunction($arr)

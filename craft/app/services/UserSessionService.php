@@ -2,27 +2,32 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * UserSessionService provides APIs for managing user sessions.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * An instance of UserSessionService is globally accessible in Craft via
+ * {@link WebApp::userSession `craft()->userSession`}.
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.services
+ * @since     1.0
  */
 class UserSessionService extends \CWebUser
 {
+	// Constants
+	// =========================================================================
+
 	const FLASH_KEY_PREFIX = 'Craft.UserSessionService.flash.';
 	const FLASH_COUNTERS   = 'Craft.UserSessionService.flashcounters';
+
+	// Properties
+	// =========================================================================
 
 	/**
 	 * Stores the user identity.
 	 *
-	 * @access private
 	 * @var UserIdentity
 	 */
 	private $_identity;
@@ -30,7 +35,6 @@ class UserSessionService extends \CWebUser
 	/**
 	 * Stores the current user model.
 	 *
-	 * @access private
 	 * @var UserModel
 	 */
 	private $_userModel;
@@ -45,29 +49,38 @@ class UserSessionService extends \CWebUser
 	 */
 	private $_sessionRestoredFromCookie;
 
+	// Public Methods
+	// =========================================================================
+
 	/**
+	 * Initializes the application component.
 	 *
+	 * @return null
 	 */
 	public function init()
 	{
-		craft()->getSession()->open();
+		if (!craft()->isConsole())
+		{
+			craft()->getSession()->open();
 
-		// Let's set our own state key prefix. Leaving identical to CWebUser for the key so people won't get logged out when updating.
-		$this->setStateKeyPrefix(md5('Yii.Craft\UserSessionService.'.craft()->getId()));
+			// Let's set our own state key prefix. Leaving identical to CWebUser for the key so people won't get logged
+			// out when updating.
+			$this->setStateKeyPrefix(md5('Yii.Craft\UserSessionService.'.craft()->getId()));
 
-		$rememberMe = craft()->request->getCookie('rememberMe') !== null ? true : false;
-		$seconds = $this->_getSessionDuration($rememberMe);
-		$this->authTimeout = $seconds;
+			$rememberMe = craft()->request->getCookie('rememberMe') !== null ? true : false;
+			$seconds = $this->_getSessionDuration($rememberMe);
+			$this->authTimeout = $seconds;
 
-		$this->updateAuthStatus();
+			$this->updateAuthStatus();
 
-		parent::init();
+			parent::init();
+		}
 	}
 
 	/**
-	 * Gets the currently logged-in user.
+	 * Returns the currently logged-in user.
 	 *
-	 * @return UserModel|null
+	 * @return UserModel|null The currently logged-in user, or `null`.
 	 */
 	public function getUser()
 	{
@@ -78,7 +91,7 @@ class UserSessionService extends \CWebUser
 			{
 				$userRow = $this->_getUserRow($this->getId());
 
-				if ($userRow)
+				if ($userRow && $userRow['status'] == UserStatus::Active || $userRow['status'] == UserStatus::Pending)
 				{
 					$this->_userModel = UserModel::populateModel($userRow);
 				}
@@ -93,10 +106,12 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Returns the URL the user was trying to access before getting sent to the login page.
+	 * Returns the URL the user was trying to access before getting redirected to the login page via
+	 * {@link requireLogin()}.
 	 *
-	 * @param string $defaultUrl
-	 * @return mixed
+	 * @param string $defaultUrl The default URL that should be returned if no return URL was stored.
+	 *
+	 * @return string The return URL, or $defaultUrl.
 	 */
 	public function getReturnUrl($defaultUrl = '')
 	{
@@ -104,9 +119,16 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Sets a notice to the user.
+	 * Stores a notice in the user’s flash data.
 	 *
-	 * @param string $message
+	 * The message will be stored on the user session, and can be retrieved by calling
+	 * {@link getFlash() `getFlash('notice')`} or {@link getFlashes()}.
+	 *
+	 * Only one flash notice can be stored at a time.
+	 *
+	 * @param string $message The message.
+	 *
+	 * @return null
 	 */
 	public function setNotice($message)
 	{
@@ -114,9 +136,16 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Sets an error notification.
+	 * Stores an error message in the user’s flash data.
 	 *
-	 * @param string $message
+	 * The message will be stored on the user session, and can be retrieved by calling
+	 * {@link getFlash() `getFlash('error')`} or {@link getFlashes()}.
+	 *
+	 * Only one flash error message can be stored at a time.
+	 *
+	 * @param string $message The message.
+	 *
+	 * @return null
 	 */
 	public function setError($message)
 	{
@@ -124,9 +153,14 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Adds a JS resource flash.
+	 * Stores a JS file from resources/ in the user’s flash data.
 	 *
-	 * @param string $resource
+	 * The file will be stored on the user session, and can be retrieved by calling {@link getJsResourceFlashes()} or
+	 * {@link TemplatesService::getFootHtml()}.
+	 *
+	 * @param string $resource The resource path to the JS file.
+	 *
+	 * @return null
 	 */
 	public function addJsResourceFlash($resource)
 	{
@@ -140,10 +174,11 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Returns the queued-up JS flashes.
+	 * Returns the stored JS resource flashes.
 	 *
-	 * @param bool $delete
-	 * @return array
+	 * @param bool $delete Whether to delete the stored flashes. Defaults to `true`.
+	 *
+	 * @return array The stored JS resource flashes.
 	 */
 	public function getJsResourceFlashes($delete = true)
 	{
@@ -151,9 +186,14 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Adds a JS flash.
+	 * Stores JS in the user’s flash data.
 	 *
-	 * @param string $js
+	 * The Javascript code will be stored on the user session, and can be retrieved by calling
+	 * {@link getJsFlashes()} or {@link TemplatesService::getFootHtml()}.
+	 *
+	 * @param string $js The Javascript code.
+	 *
+	 * @return null
 	 */
 	public function addJsFlash($js)
 	{
@@ -163,10 +203,11 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Returns the queued-up JS flashes.
+	 * Returns the stored JS flashes.
 	 *
-	 * @param bool $delete
-	 * @return array
+	 * @param bool $delete Whether to delete the stored flashes. Defaults to `true`.
+	 *
+	 * @return array The stored JS flashes.
 	 */
 	public function getJsFlashes($delete = true)
 	{
@@ -174,10 +215,7 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 *
-	 * Check to see if the current web user is a guest.
-	 *
-	 * (wrapper for getIsGuest() for consistency)
+	 * Alias of {@link getIsGuest()}.
 	 *
 	 * @return bool
 	 */
@@ -188,9 +226,11 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Check to see if the current web user is logged in.
+	 * Returns whether the current user is logged in.
 	 *
-	 * @return bool
+	 * The result will always just be the opposite of whatever {@link getIsGuest()} returns.
+	 *
+	 * @return bool Whether the current user is logged in.
 	 */
 	public function isLoggedIn()
 	{
@@ -200,7 +240,7 @@ class UserSessionService extends \CWebUser
 	/**
 	 * Returns whether the current user is an admin.
 	 *
-	 * @return bool
+	 * @return bool Whether the current user is an admin.
 	 */
 	public function isAdmin()
 	{
@@ -211,8 +251,9 @@ class UserSessionService extends \CWebUser
 	/**
 	 * Returns whether the current user has a given permission.
 	 *
-	 * @param string $permissionName
-	 * @return bool
+	 * @param string $permissionName The name of the permission.
+	 *
+	 * @return bool Whether the current user has the permission.
 	 */
 	public function checkPermission($permissionName)
 	{
@@ -221,10 +262,12 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Requires that the current user has a given permission, otherwise a 403 exception is thrown.
+	 * Checks whether the current user has a given permission, and ends the request with a 403 error if they don’t.
 	 *
-	 * @param string $permissionName
+	 * @param string $permissionName The name of the permission.
+	 *
 	 * @throws HttpException
+	 * @return null
 	 */
 	public function requirePermission($permissionName)
 	{
@@ -235,9 +278,10 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Requires that the current user is an admin, otherwise a 403 exception is thrown.
+	 * Checks whether the current user is an admin, and ends the request with a 403 error if they aren’t.
 	 *
 	 * @throws HttpException
+	 * @return null
 	 */
 	public function requireAdmin()
 	{
@@ -248,12 +292,23 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Requires that the user is logged in, otherwise redirects them to the login page.
+	 * Checks whether the current user is logged in, and redirects them to the Login page if they aren’t.
+	 *
+	 * The current request’s URL will be stored on the user’s session before they get redirected, and Craft will
+	 * automatically redirect them back to the original URL after they’ve logged in.
+	 *
+	 * @throws Exception
+	 * @return null
 	 */
 	public function requireLogin()
 	{
 		if ($this->isGuest())
 		{
+			if (craft()->config->get('loginPath') === craft()->request->getPath())
+			{
+				throw new Exception(Craft::t('requireLogin was used on the login page, creating an infinite loop.'));
+			}
+
 			if (!craft()->request->isAjaxRequest())
 			{
 				$url = craft()->request->getPath();
@@ -283,7 +338,9 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Pointless Wrapper for requireLogin(), but \CWebUser uses loginRequired() so we must support it as well.
+	 * Alias of {@link requireLogin()}.
+	 *
+	 * @return null
 	 */
 	public function loginRequired()
 	{
@@ -293,11 +350,18 @@ class UserSessionService extends \CWebUser
 	/**
 	 * Logs a user in.
 	 *
-	 * @param \IUserIdentity $username
-	 * @param int            $password
-	 * @param bool           $rememberMe
+	 * If $rememberMe is set to `true`, the user will be logged in for the duration specified by the
+	 * [rememberedUserSessionDuration](http://buildwithcraft.com/docs/config-settings#rememberedUserSessionDuration)
+	 * config setting. Otherwise it will last for the duration specified by the
+	 * [userSessionDuration](http://buildwithcraft.com/docs/config-settings#userSessionDuration)
+	 * config setting.
+	 *
+	 * @param string $username   The user’s username.
+	 * @param string $password   The user’s submitted password.
+	 * @param bool   $rememberMe Whether the user should be remembered.
+	 *
 	 * @throws Exception
-	 * @return bool
+	 * @return bool Whether the user was logged in successfully.
 	 */
 	public function login($username, $password, $rememberMe = false)
 	{
@@ -328,6 +392,7 @@ class UserSessionService extends \CWebUser
 			{
 				// See if the 'rememberUsernameDuration' config item is set. If so, save the name to a cookie.
 				$rememberUsernameDuration = craft()->config->get('rememberUsernameDuration');
+
 				if ($rememberUsernameDuration)
 				{
 					$interval = new DateInterval($rememberUsernameDuration);
@@ -338,7 +403,8 @@ class UserSessionService extends \CWebUser
 					$this->saveCookie('username', $username, $expire->getTimestamp());
 				}
 
-				// If there is a remember me cookie, but $rememberMe is false, they logged in with an unchecked remember me box, so let's remove the cookie.
+				// If there is a remember me cookie, but $rememberMe is false, they logged in with an unchecked remember
+				// me box, so let's remove the cookie.
 				if (craft()->request->getCookie('rememberMe') !== null && !$rememberMe)
 				{
 					craft()->request->deleteCookie('rememberMe');
@@ -433,9 +499,16 @@ class UserSessionService extends \CWebUser
 	/**
 	 * Logs a user in for impersonation.
 	 *
-	 * @param \IUserIdentity $userId
+	 * This method doesn’t have any sort of credential verification, and just requires the ID of the user to
+	 * impersonate, so use it at your own peril.
+	 *
+	 * The new user session will only last as long as the browser session remains active; no identity cookie will be
+	 * created.
+	 *
+	 * @param int $userId The user’s ID.
+	 *
 	 * @throws Exception
-	 * @return bool
+	 * @return bool Whether the user is now being impersonated.
 	 */
 	public function impersonate($userId)
 	{
@@ -483,7 +556,7 @@ class UserSessionService extends \CWebUser
 	/**
 	 * Returns the login error code from the user identity.
 	 *
-	 * @return UserIdentity
+	 * @return int|null The login error code, or `null` if there isn’t one.
 	 */
 	public function getLoginErrorCode()
 	{
@@ -494,11 +567,12 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Gets the proper error message from the given error code.
+	 * Returns a login error message by a given error code.
 	 *
-	 * @param $errorCode
-	 * @param $loginName
-	 * @return null|string
+	 * @param $errorCode The login error code.
+	 * @param $loginName The user’s username or email.
+	 *
+	 * @return string The login error message.
 	 */
 	public function getLoginErrorMessage($errorCode, $loginName)
 	{
@@ -563,7 +637,9 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @return string
+	 * Returns the username of the account that the browser was last logged in as.
+	 *
+	 * @return string|null
 	 */
 	public function getRememberedUsername()
 	{
@@ -571,7 +647,7 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Overriding Yii's because it's stupid.
+	 * Alias of {@link isGuest()}.
 	 *
 	 * @return bool
 	 */
@@ -581,11 +657,14 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * TODO: set domain to wildcard?  .example.com, .example.co.uk, .too.many.subdomains.com
+	 * Sets a cookie on the browser.
 	 *
-	 * @param     $cookieName
-	 * @param     $data
-	 * @param int $duration
+	 * @param string $cookieName The name of the cookie.
+	 * @param mixed  $data       The data that should be stored on the cookie.
+	 * @param int    $duration   The duration that the cookie should be stored for, in seconds.
+	 *
+	 * @todo Set domain to wildcard?  .example.com, .example.co.uk, .too.many.subdomains.com
+	 * @return null
 	 */
 	public function saveCookie($cookieName, $data, $duration = 0)
 	{
@@ -604,8 +683,11 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @param $cookieName
-	 * @return mixed|null
+	 * Returns the value of a cookie by its name.
+	 *
+	 * @param string $cookieName The name of the cookie.
+	 *
+	 * @return mixed The value of the cookie, or `null` if the cookie doesn’t exist.
 	 */
 	public function getCookieValue($cookieName)
 	{
@@ -621,7 +703,12 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @return null
+	 * Returns whether the current user session was just restored from a cookie.
+	 *
+	 * This happens when a user with an active session closes their browser, and then re-opens it before their session
+	 * is supposed to expire.
+	 *
+	 * @return bool Whether the current user session was just restored from a cookie.
 	 */
 	public function wasSessionRestoredFromCookie()
 	{
@@ -629,7 +716,11 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Clears all user identity information from persistent storage. This will remove the data stored via {@link setState}.
+	 * Clears all user identity information from persistent storage.
+	 *
+	 * This will remove the data stored via {@link setState}.
+	 *
+	 * @return null
 	 */
 	public function clearStates()
 	{
@@ -639,6 +730,7 @@ class UserSessionService extends \CWebUser
 			$prefix = $this->getStateKeyPrefix();
 
 			$n = mb_strlen($prefix);
+
 			foreach($keys as $key)
 			{
 				if (!strncmp($key, $prefix, $n))
@@ -653,6 +745,8 @@ class UserSessionService extends \CWebUser
 	 * Fires an 'onBeforeLogin' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeLogin(Event $event)
 	{
@@ -663,22 +757,33 @@ class UserSessionService extends \CWebUser
 	 * Fires an 'onLogin' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onLogin(Event $event)
 	{
 		$this->raiseEvent('onLogin', $event);
 	}
 
+	// Protected Methods
+	// =========================================================================
+
 	/**
-	 * Changes the current user with the specified identity information. This method is called by {@link login} and {@link restoreFromCookie}
-	 * when the current user needs to be populated with the corresponding identity information. Derived classes may override this method
-	 * by retrieving additional user-related information. Make sure the parent implementation is called first.
+	 * Changes the current user with the specified identity information.
 	 *
-	 * @param mixed  $id     A unique identifier for the user
-	 * @param string $name   The display name for the user
-	 * @param array  $states Identity states
+	 * This method is called by {@link login} and {@link restoreFromCookie} when the current user needs to be populated
+	 * with the corresponding identity information.
+	 *
+	 * Derived classes may override this method by retrieving additional user-related information. Make sure the parent
+	 * implementation is called first.
+	 *
+	 * @param mixed  $id     A unique identifier for the user.
+	 * @param string $name   The display name for the user.
+	 * @param array  $states Identity states.
+	 *
+	 * @return null
 	 */
-	protected function changeIdentity($id,$name,$states)
+	protected function changeIdentity($id, $name, $states)
 	{
 		$this->setId($id);
 		$this->setName($name);
@@ -686,7 +791,9 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
+	 * Renews the user’s identity cookie.
 	 *
+	 * @return null
 	 */
 	protected function renewCookie()
 	{
@@ -719,13 +826,19 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * Populates the current user object with the information obtained from cookie.
-	 * This method is used when automatic login ({@link allowAutoLogin}) is enabled.
-	 * The user identity information is recovered from cookie.
+	 * Restores a user session from the identity cookie.
+	 *
+	 * This method is used when automatic login ({@link allowAutoLogin}) is enabled. The user identity information is
+	 * recovered from cookie.
+	 *
+	 * @return null
 	 */
 	protected function restoreFromCookie()
 	{
-		$this->_checkVitals();
+		if (!$this->_checkVitals())
+		{
+			return false;
+		}
 
 		// See if they have an existing identity cookie.
 		$cookie = craft()->request->getCookies()->itemAt($this->getStateKeyPrefix());
@@ -815,7 +928,9 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @return bool|void
+	 * Called before a user is logged out.
+	 *
+	 * @return bool So true.
 	 */
 	protected function beforeLogout()
 	{
@@ -851,9 +966,13 @@ class UserSessionService extends \CWebUser
 		return true;
 	}
 
+	// Private Methods
+	// =========================================================================
+
 	/**
-	 * @param $loginName
-	 * @param $uid
+	 * @param string $loginName
+	 * @param string $uid
+	 *
 	 * @return bool
 	 */
 	private function _findSessionToken($loginName, $uid)
@@ -874,19 +993,21 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @param $loginName
-	 * @param $currentToken
-	 * @param $newToken
+	 * @param string $loginName
+	 * @param string $currentToken
+	 * @param string $newToken
+	 *
 	 * @return int
 	 */
 	private function _updateSessionToken($loginName, $currentToken, $newToken)
 	{
 		$user = craft()->users->getUserByUsernameOrEmail($loginName);
+
 		craft()->db->createCommand()->update('sessions', array('token' => $newToken), 'token=:currentToken AND userId=:userId', array('currentToken' => $currentToken, 'userId' => $user->id));
 	}
 
 	/**
-	 *
+	 * @return null
 	 */
 	private function _cleanStaleSessions()
 	{
@@ -899,7 +1020,8 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @param $rememberMe
+	 * @param string $rememberMe
+	 *
 	 * @return int
 	 */
 	private function _getSessionDuration($rememberMe)
@@ -931,7 +1053,8 @@ class UserSessionService extends \CWebUser
 	}
 
 	/**
-	 * @param $id
+	 * @param int $id
+	 *
 	 * @return int
 	 */
 	private function _getUserRow($id)
@@ -966,6 +1089,8 @@ class UserSessionService extends \CWebUser
 
 	/**
 	 * Checks whether the the current request has a user agent string or IP address.
+	 *
+	 * @return bool
 	 */
 	private function _checkVitals()
 	{
@@ -976,13 +1101,21 @@ class UserSessionService extends \CWebUser
 			{
 				Craft::log('Someone tried to restore a session from a cookie without presenting an IP address or userAgent string.', LogLevel::Warning);
 				$this->logout(true);
-				$this->requireLogin();
+
+				return false;
 			}
 		}
+
+		return true;
 	}
 
 	/**
 	 * Checks whether the current user agent string matches the user agent string saved in the identity cookie.
+	 *
+	 * @param string $currentUserAgent
+	 * @param string $savedUserAgent
+	 *
+	 * @return null
 	 */
 	private function _checkUserAgentString($currentUserAgent, $savedUserAgent)
 	{

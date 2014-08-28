@@ -1,15 +1,5 @@
 <?php
 
-/**
- * Craft by Pixel & Tonic
- *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
- * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
- * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
 // Initially set it here.  WebApp->init() will check devMode and override appropriately.
 error_reporting(E_ALL & ~E_STRICT);
 ini_set('display_errors', 1);
@@ -41,6 +31,7 @@ $configArray = array(
 		'app.controllers.AssetTransformsController',
 		'app.controllers.AssetsController',
 		'app.controllers.BaseController',
+		'app.controllers.BaseEntriesController',
 		'app.controllers.CategoriesController',
 		'app.controllers.DashboardController',
 		'app.controllers.ElementsController',
@@ -74,6 +65,7 @@ $configArray = array(
 		'app.elementtypes.MatrixBlockElementType',
 		'app.elementtypes.TagElementType',
 		'app.elementtypes.UserElementType',
+		'app.enums.AssetConflictResolution',
 		'app.enums.AttributeType',
 		'app.enums.BaseEnum',
 		'app.enums.CacheMethod',
@@ -90,7 +82,6 @@ $configArray = array(
 		'app.enums.PatchManifestFileAction',
 		'app.enums.PeriodType',
 		'app.enums.PluginVersionUpdateStatus',
-		'app.enums.PtAccountCredentialStatus',
 		'app.enums.RequirementResult',
 		'app.enums.SectionType',
 		'app.enums.TaskStatus',
@@ -149,6 +140,7 @@ $configArray = array(
 		'app.etc.logging.ProfileLogRoute',
 		'app.etc.logging.WebLogRoute',
 		'app.etc.plugins.BasePlugin',
+		'app.etc.plugins.IPlugin',
 		'app.etc.requirements.Requirements',
 		'app.etc.requirements.RequirementsChecker',
 		'app.etc.search.SearchQuery',
@@ -337,6 +329,7 @@ $configArray = array(
 		'app.records.TagGroupRecord',
 		'app.records.TagRecord',
 		'app.records.TaskRecord',
+		'app.records.TokenRecord',
 		'app.records.UserGroupRecord',
 		'app.records.UserGroup_UserRecord',
 		'app.records.UserPermissionRecord',
@@ -385,6 +378,7 @@ $configArray = array(
 		'app.services.TasksService',
 		'app.services.TemplateCacheService',
 		'app.services.TemplatesService',
+		'app.services.TokensService',
 		'app.services.UpdatesService',
 		'app.services.UserGroupsService',
 		'app.services.UserPermissionsService',
@@ -492,9 +486,8 @@ $configArray = array(
 	)
 );
 
-// -------------------------------------------
-//  CP routes
-// -------------------------------------------
+// CP routes
+// ----------------------------------------------------------------------------
 
 $cpRoutes['categories/(?P<groupHandle>{handle})'] = 'categories';
 
@@ -576,15 +569,15 @@ $cpRoutes['editionRoutes'][2]['settings/users']                                 
 $cpRoutes['editionRoutes'][2]['settings/users/groups/new']                                                        = 'settings/users/groups/_settings';
 $cpRoutes['editionRoutes'][2]['settings/users/groups/(?P<groupId>\d+)']                                           = 'settings/users/groups/_settings';
 
-// -------------------------------------------
 //  Component config
-// -------------------------------------------
+// ----------------------------------------------------------------------------
 
 $components['users']['class']                = 'Craft\UsersService';
 $components['assets']['class']               = 'Craft\AssetsService';
 $components['assetTransforms']['class']      = 'Craft\AssetTransformsService';
 $components['assetIndexing']['class']        = 'Craft\AssetIndexingService';
 $components['assetSources']['class']         = 'Craft\AssetSourcesService';
+$components['cache']['class']                = 'Craft\CacheService';
 $components['categories']['class']           = 'Craft\CategoriesService';
 $components['content']['class']              = 'Craft\ContentService';
 $components['dashboard']['class']            = 'Craft\DashboardService';
@@ -603,7 +596,6 @@ $components['matrix']['class']               = 'Craft\MatrixService';
 $components['migrations']['class']           = 'Craft\MigrationsService';
 $components['path']['class']                 = 'Craft\PathService';
 $components['relations']['class']            = 'Craft\RelationsService';
-$components['cache']['class']                = 'Craft\CacheService';
 $components['resources'] = array(
 	'class'     => 'Craft\ResourcesService',
 	'dateParam' => 'd',
@@ -648,6 +640,7 @@ $components['tags']['class']                 = 'Craft\TagsService';
 $components['tasks']['class']                = 'Craft\TasksService';
 $components['templateCache']['class']        = 'Craft\TemplateCacheService';
 $components['templates']['class']            = 'Craft\TemplatesService';
+$components['tokens']['class']               = 'Craft\TokensService';
 $components['updates']['class']              = 'Craft\UpdatesService';
 $components['components'] = array(
 	'class' => 'Craft\ComponentsService',

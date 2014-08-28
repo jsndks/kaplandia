@@ -1,7 +1,8 @@
 /*
  Copyright (c) 2014, Pixel & Tonic, Inc.
  @license   http://buildwithcraft.com/license Craft License Agreement
- @link      http://buildwithcraft.com
+ @see       http://buildwithcraft.com
+ @package   craft.app.resources
 */
 (function(b){Craft.Tool=Garnish.Base.extend({$trigger:null,$form:null,$innerProgressBar:null,$innerProgressBar:null,toolClass:null,optionsHtml:null,buttonLabel:null,hud:null,totalActions:null,completedActions:null,loadingActions:null,queue:null,init:function(a,c,d){this.toolClass=a;this.optionsHtml=c;this.buttonLabel=d;this.$trigger=b("#tool-"+a);this.addListener(this.$trigger,"click","showHUD")},showHUD:function(a){a.stopPropagation();this.hud?this.hud.show():(this.$form=b("<form/>").html(this.optionsHtml+
 '<div class="buttons"><input type="submit" class="btn submit" value="'+this.buttonLabel+'"></div>'),this.hud=new Garnish.HUD(this.$trigger,this.$form,{hudClass:"hud toolhud"}),Craft.initUiElements(this.$form),this.addListener(this.$form,"submit","onSubmit"))},onSubmit:function(a){a.preventDefault();this.progressBar?this.progressBar.resetProgressBar():this.progressBar=new Craft.ProgressBar(this.hud.$body);this.totalActions=1;this.completedActions=0;this.queue=[];this.loadingActions=0;this.currentBatchQueue=

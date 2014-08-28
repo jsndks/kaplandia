@@ -1,27 +1,30 @@
 <?php
 namespace Craft;
 
-/**
- * Craft by Pixel & Tonic
- *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
- * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
- * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
 craft()->requireEdition(Craft::Pro);
 
 /**
- * Rackspace source type class
+ * The Rackspace asset source type class. Handles the implementation of Rackspace as an asset source type in Craft.
+ *
+ * @author     Pixel & Tonic, Inc. <support@pixelandtonic.com>
+ * @copyright  Copyright (c) 2014, Pixel & Tonic, Inc.
+ * @license    http://buildwithcraft.com/license Craft License Agreement
+ * @see        http://buildwithcraft.com
+ * @package    craft.app.assetsourcetypes
+ * @since      1.0
+ * @deprecated This class will most likely be removed in Craft 3.0.
  */
 class RackspaceAssetSourceType extends BaseAssetSourceType
 {
-	const RackspaceAuthHost = 'https://identity.api.rackspacecloud.com/v2.0/tokens';
+	// Constants
+	// =========================================================================
 
+	const RackspaceAuthHost = 'https://identity.api.rackspacecloud.com/v2.0/tokens';
 	const RackspaceStorageOperation = 'storage';
 	const RackspaceCDNOperation = 'cdn';
+
+	// Properties
+	// =========================================================================
 
 	/**
 	 * Stores access information.
@@ -29,6 +32,9 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * @var array
 	 */
 	private static $_accessStore = array();
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns the name of the source type.
@@ -38,24 +44,6 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	public function getName()
 	{
 		return 'Rackspace Cloud Files';
-	}
-
-	/**
-	 * Defines the settings.
-	 *
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineSettings()
-	{
-		return array(
-			'username'   => array(AttributeType::String, 'required' => true),
-			'apiKey'     => array(AttributeType::String, 'required' => true),
-			'region'     => array(AttributeType::String, 'required' => true),
-			'container'	 => array(AttributeType::String, 'required' => true),
-			'urlPrefix'  => array(AttributeType::String, 'required' => true),
-			'subfolder'  => array(AttributeType::String, 'default' => ''),
-		);
 	}
 
 	/**
@@ -70,12 +58,11 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		));
 	}
 
-
 	/**
 	 * Get container list.
 	 *
-	 * @return array
 	 * @throws Exception
+	 * @return array
 	 */
 	public function getContainerList()
 	{
@@ -100,6 +87,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		return $returnData;
 	}
 
+
 	/**
 	 * Get region list.
 	 *
@@ -109,11 +97,13 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	{
 		$this->_refreshConnectionInformation();
 		$regions = array();
-		foreach (self::$_accessStore as $key => $information)
+
+		foreach (static::$_accessStore as $key => $information)
 		{
 			$parts = explode('#', $key);
 			$regions[] = end($parts);
 		}
+
 		return $regions;
 	}
 
@@ -121,8 +111,9 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Starts an indexing session.
 	 *
 	 * @param $sessionId
-	 * @return array
+	 *
 	 * @throws Exception
+	 * @return array
 	 */
 	public function startIndex($sessionId)
 	{
@@ -166,7 +157,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 			// Strip the prefix, so we don't index the parent folders
 			$file->name = mb_substr($file->name, mb_strlen($prefix));
 
-			if (!preg_match(AssetsHelper::IndexSkipItemsPattern, $file->name))
+			if (!preg_match(AssetsHelper::INDEX_SKIP_ITEMS_PATTERN, $file->name))
 			{
 				// So in Rackspace a folder may or may not exist. For path a/path/to/file.jpg, any of those folders may
 				// or may not exist. So we have to add all the segments to $containerFolders to make sure we index them
@@ -219,11 +210,11 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		// Ensure folders are in the DB
 		foreach ($containerFolders as $fullPath => $nothing)
 		{
-			$folderId = $this->_ensureFolderByFulPath($fullPath.'/');
+			$folderId = $this->ensureFolderByFullPath($fullPath.'/');
 			$indexedFolderIds[$folderId] = true;
 		}
 
-		$missingFolders = $this->_getMissingFolders($indexedFolderIds);
+		$missingFolders = $this->getMissingFolders($indexedFolderIds);
 
 		return array('sourceId' => $this->model->id, 'total' => $total, 'missingFolders' => $missingFolders);
 	}
@@ -233,6 +224,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 *
 	 * @param $sessionId
 	 * @param $offset
+	 *
 	 * @return mixed
 	 */
 	public function processIndex($sessionId, $offset)
@@ -245,7 +237,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		}
 
 		$uriPath = $indexEntryModel->uri;
-		$fileModel = $this->_indexFile($uriPath);
+		$fileModel = $this->indexFile($uriPath);
 
 		if ($fileModel)
 		{
@@ -259,12 +251,16 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 
 			$targetPath = craft()->path->getAssetsImageSourcePath().$fileModel->id.'.'.IOHelper::getExtension($fileModel->filename);
 
-			if ($fileModel->kind == 'image' && $fileModel->dateModified != $timeModified || !IOHelper::fileExists($targetPath))
+			if ($fileModel->kind == 'image' && ($fileModel->dateModified != $timeModified || !IOHelper::fileExists($targetPath)))
 			{
 				$this->_downloadFile($this->_getPathPrefix().$uriPath, $targetPath);
 
 				clearstatcache();
 				list ($fileModel->width, $fileModel->height) = getimagesize($targetPath);
+
+				// Store the local source or delete - maxCacheCloudImageSize is king.
+				craft()->assetTransforms->storeLocalSource($targetPath, $targetPath);
+				craft()->assetTransforms->deleteSourceIfNecessary($targetPath);
 			}
 
 			$fileModel->dateModified = $timeModified;
@@ -278,56 +274,10 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Insert a file from path in folder.
-	 *
-	 * @param AssetFolderModel $folder
-	 * @param $filePath
-	 * @param $fileName
-	 * @return AssetFileModel
-	 * @throws Exception
-	 */
-	protected function _insertFileInFolder(AssetFolderModel $folder, $filePath, $fileName)
-	{
-		$fileName = IOHelper::cleanFilename($fileName);
-		$extension = IOHelper::getExtension($fileName);
-
-		if (! IOHelper::isExtensionAllowed($extension))
-		{
-			throw new Exception(Craft::t('This file type is not allowed'));
-		}
-
-		$uriPath = $this->_getPathPrefix().$folder->path.$fileName;
-
-
-
-		$fileInfo = $this->_getObjectInfo($uriPath);
-
-		if ($fileInfo)
-		{
-			$response = new AssetOperationResponseModel();
-			return $response->setPrompt($this->_getUserPromptOptions($fileName))->setDataItem('fileName', $fileName);
-		}
-
-		clearstatcache();
-
-		// Upload file
-		try
-		{
-			$this->_uploadFile($uriPath, $filePath);
-		}
-		catch (\Exception $exception)
-		{
-			throw new Exception(Craft::t('Could not copy file to target destination'));
-		}
-
-		$response = new AssetOperationResponseModel();
-		return $response->setSuccess()->setDataItem('filePath', $uriPath);
-	}
-
-	/**
 	 * Get the image source path with the optional handle name.
 	 *
 	 * @param AssetFileModel $fileModel
+	 *
 	 * @return mixed
 	 */
 	public function getImageSourcePath(AssetFileModel $fileModel)
@@ -339,7 +289,8 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Get the timestamp of when a file transform was last modified.
 	 *
 	 * @param AssetFileModel $fileModel
-	 * @param string $transformLocation
+	 * @param string         $transformLocation
+	 *
 	 * @return mixed
 	 */
 	public function getTimeTransformModified(AssetFileModel $fileModel, $transformLocation)
@@ -354,17 +305,18 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 			return false;
 		}
 
-		return new DateTime($fileInfo->last_modified, new \DateTimeZone('UTC'));
+		return new DateTime($fileInfo->lastModified, new \DateTimeZone('UTC'));
 	}
 
 	/**
-	* Put an image transform for the File and handle using the provided path to the source image.
-	*
-	* @param AssetFileModel $fileModel
-	* @param $handle
-	* @param $sourceImage
-	* @return mixed
-	*/
+	 * Put an image transform for the File and handle using the provided path to the source image.
+	 *
+	 * @param AssetFileModel $fileModel
+	 * @param                $handle
+	 * @param                $sourceImage
+	 *
+	 * @return mixed
+	 */
 	public function putImageTransform(AssetFileModel $fileModel, $handle, $sourceImage)
 	{
 		$targetFile = $this->_getPathPrefix().$fileModel->getFolder()->path.'_'.ltrim($handle, '_').'/'.$fileModel->filename;
@@ -382,13 +334,87 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
+	 * Make a local copy of the file and return the path to it.
+	 *
+	 * @param AssetFileModel $file
+	 *
+	 * @return mixed
+	 */
+
+	public function getLocalCopy(AssetFileModel $file)
+	{
+		$location = AssetsHelper::getTempFilePath($file->getExtension());
+
+		$this->_downloadFile($this->_getRackspacePath($file), $location);
+
+		return $location;
+	}
+
+	/**
+	 * Return true if the source is a remote source.
+	 *
+	 * @return bool
+	 */
+	public function isRemote()
+	{
+		return true;
+	}
+
+	/**
+	 * Return the source's base URL.
+	 *
+	 * @return string
+	 */
+	public function getBaseUrl()
+	{
+		return $this->getSettings()->urlPrefix.$this->_getPathPrefix();
+	}
+
+	/**
+	 * Copy a transform for a file from source location to target location.
+	 *
+	 * @param AssetFileModel $file
+	 * @param                $source
+	 * @param                $target
+	 *
+	 * @return mixed
+	 */
+	public function copyTransform(AssetFileModel $file, $source, $target)
+	{
+		$container = $this->getSettings()->container;
+		$basePath = $this->_getPathPrefix().$file->getFolder()->path;
+
+		$sourceUri = $this->_prepareRequestURI($container, $basePath.$source.'/'.$file->filename);
+		$targetUri = $this->_prepareRequestURI($container, $basePath.$target.'/'.$file->filename);
+
+		$this->_copyFile($sourceUri, $targetUri);
+	}
+
+	/**
+	 * Return true if a transform exists at the location for a file.
+	 *
+	 * @param AssetFileModel $file
+	 * @param                $location
+	 *
+	 * @return mixed
+	 */
+	public function transformExists(AssetFileModel $file, $location)
+	{
+		return (bool) $this->_getObjectInfo($this->_getPathPrefix().$file->getFolder()->path.$location.'/'.$file->filename);
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
 	 * Get a name replacement for a filename already taken in a folder.
 	 *
 	 * @param AssetFolderModel $folder
-	 * @param $fileName
+	 * @param                  $fileName
+	 *
 	 * @return mixed
 	 */
-	protected function _getNameReplacement(AssetFolderModel $folder, $fileName)
+	protected function getNameReplacement(AssetFolderModel $folder, $fileName)
 	{
 		$prefix = $this->_getPathPrefix().$folder->path;
 
@@ -409,55 +435,91 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		$fileNameParts = explode(".", $fileName);
 		$extension = array_pop($fileNameParts);
 
-		$fileNameStart = join(".", $fileNameParts) . '_';
+		$fileNameStart = join(".", $fileNameParts).'_';
 		$index = 1;
 
-		while ( isset($fileList[$this->_getPathPrefix().$folder->path . $fileNameStart . $index . '.' . $extension]))
+		while ( isset($fileList[$this->_getPathPrefix().$folder->path.$fileNameStart.$index.'.'.$extension]))
 		{
 			$index++;
 		}
 
-		return $fileNameStart . $index . '.' . $extension;
+		return $fileNameStart.$index.'.'.$extension;
 	}
 
 	/**
-	 * Make a local copy of the file and return the path to it.
+	 * Defines the settings.
 	 *
-	 * @param AssetFileModel $file
-	 * @return mixed
+	 * @return array
 	 */
-
-	public function getLocalCopy(AssetFileModel $file)
+	protected function defineSettings()
 	{
-		$location = AssetsHelper::getTempFilePath($file->getExtension());
-
-		$this->_downloadFile($this->_getRackspacePath($file), $location);
-
-		return $location;
+		return array(
+			'username'   => array(AttributeType::String, 'required' => true),
+			'apiKey'     => array(AttributeType::String, 'required' => true),
+			'region'     => array(AttributeType::String, 'required' => true),
+			'container'	 => array(AttributeType::String, 'required' => true),
+			'urlPrefix'  => array(AttributeType::String, 'required' => true),
+			'subfolder'  => array(AttributeType::String, 'default' => ''),
+		);
 	}
 
 	/**
-	 * Get a file's S3 path.
+	 * Insert a file from path in folder.
 	 *
-	 * @param AssetFileModel $file
-	 * @return string
+	 * @param AssetFolderModel $folder
+	 * @param                  $filePath
+	 * @param                  $fileName
+	 *
+	 * @throws Exception
+	 * @return AssetFileModel
 	 */
-	private function _getRackspacePath(AssetFileModel $file)
+	protected function insertFileInFolder(AssetFolderModel $folder, $filePath, $fileName)
 	{
-		$folder = $file->getFolder();
-		return $this->_getPathPrefix().$folder->path.$file->filename;
+		$fileName = IOHelper::cleanFilename($fileName);
+		$extension = IOHelper::getExtension($fileName);
+
+		if (! IOHelper::isExtensionAllowed($extension))
+		{
+			throw new Exception(Craft::t('This file type is not allowed'));
+		}
+
+		$uriPath = $this->_getPathPrefix().$folder->path.$fileName;
+
+		$fileInfo = $this->_getObjectInfo($uriPath);
+
+		if ($fileInfo)
+		{
+			$response = new AssetOperationResponseModel();
+			return $response->setPrompt($this->getUserPromptOptions($fileName))->setDataItem('fileName', $fileName);
+		}
+
+		clearstatcache();
+
+		// Upload file
+		try
+		{
+			$this->_uploadFile($uriPath, $filePath);
+		}
+		catch (\Exception $exception)
+		{
+			throw new Exception(Craft::t('Could not copy file to target destination'));
+		}
+
+		$response = new AssetOperationResponseModel();
+		return $response->setSuccess()->setDataItem('filePath', $uriPath);
 	}
 
 	/**
 	 * Delete just the source file for an Assets File.
 	 *
 	 * @param AssetFolderModel $folder
-	 * @param $filename
-	 * @return void
+	 * @param                  $filename
+	 *
+	 * @return null
 	 */
-	protected function _deleteSourceFile(AssetFolderModel $folder, $filename)
+	protected function deleteSourceFile(AssetFolderModel $folder, $filename)
 	{
-		$uriPath = $this->_prepareRequestURI($this->getSettings()->container, $this->_getPathPrefix() . $folder->path . $filename);
+		$uriPath = $this->_prepareRequestURI($this->getSettings()->container, $this->_getPathPrefix().$folder->path.$filename);
 
 		$this->_deleteObject($uriPath);
 
@@ -467,9 +529,10 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Delete all the generated image transforms for this file.
 	 *
 	 * @param AssetFileModel $file
-	 * @return void
+	 *
+	 * @return null
 	 */
-	protected function _deleteGeneratedImageTransforms(AssetFileModel $file)
+	protected function deleteGeneratedImageTransforms(AssetFileModel $file)
 	{
 		$folder = craft()->assets->getFolderById($file->folderId);
 		$transforms = craft()->assetTransforms->getGeneratedTransformLocationsForFile($file);
@@ -483,13 +546,14 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	/**
 	 * Move a file in source.
 	 *
-	 * @param AssetFileModel $file
+	 * @param AssetFileModel   $file
 	 * @param AssetFolderModel $targetFolder
-	 * @param string $fileName
-	 * @param bool $overwrite if True, will overwrite target destination
+	 * @param string           $fileName
+	 * @param bool             $overwrite    If true, will overwrite target destination
+	 *
 	 * @return mixed
 	 */
-	protected function _moveSourceFile(AssetFileModel $file, AssetFolderModel $targetFolder, $fileName = '', $overwrite = false)
+	protected function moveSourceFile(AssetFileModel $file, AssetFolderModel $targetFolder, $fileName = '', $overwrite = false)
 	{
 		if (empty($fileName))
 		{
@@ -511,7 +575,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		if ($conflict)
 		{
 			$response = new AssetOperationResponseModel();
-			return $response->setPrompt($this->_getUserPromptOptions($fileName))->setDataItem('fileName', $fileName);
+			return $response->setPrompt($this->getUserPromptOptions($fileName))->setDataItem('fileName', $fileName);
 		}
 
 		$sourceFolder = $file->getFolder();
@@ -520,7 +584,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		$originatingSourceType = craft()->assetSources->getSourceTypeById($file->sourceId);
 		$originatingSettings = $originatingSourceType->getSettings();
 
-		$sourceUri = $this->_prepareRequestURI($originatingSettings->container, $originatingSettings->subfolder.$sourceFolder->path.$file);
+		$sourceUri = $this->_prepareRequestURI($originatingSettings->container, $originatingSettings->subfolder.$sourceFolder->path.$file->filename);
 		$targetUri = $this->_prepareRequestURI($this->getSettings()->container, $newServerPath);
 
 		$this->_copyFile($sourceUri, $targetUri);
@@ -528,7 +592,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 
 		if ($file->kind == 'image')
 		{
-			$this->_deleteGeneratedThumbnails($file);
+			$this->deleteGeneratedThumbnails($file);
 
 			// Move transforms
 			$transforms = craft()->assetTransforms->getGeneratedTransformLocationsForFile($file);
@@ -555,10 +619,11 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Return true if a folder exists on Rackspace.
 	 *
 	 * @param AssetFolderModel $parentFolder
-	 * @param $folderName
-	 * @return boolean
+	 * @param                  $folderName
+	 *
+	 * @return bool
 	 */
-	protected function _sourceFolderExists(AssetFolderModel $parentFolder, $folderName)
+	protected function sourceFolderExists(AssetFolderModel $parentFolder, $folderName)
 	{
 		return (bool) $this->_getObjectInfo($this->_getPathPrefix().$parentFolder->path.$folderName);
 
@@ -568,10 +633,11 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Create a folder on Rackspace, return true on success.
 	 *
 	 * @param AssetFolderModel $parentFolder
-	 * @param $folderName
-	 * @return boolean
+	 * @param                  $folderName
+	 *
+	 * @return bool
 	 */
-	protected function _createSourceFolder(AssetFolderModel $parentFolder, $folderName)
+	protected function createSourceFolder(AssetFolderModel $parentFolder, $folderName)
 	{
 		$headers = array(
 			'Content-type: application/directory',
@@ -588,15 +654,17 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Rename a source folder.
 	 *
 	 * @param AssetFolderModel $folder
-	 * @param $newName
-	 * @return boolean
+	 * @param                  $newName
+	 *
+	 * @return bool
 	 */
-	protected function _renameSourceFolder(AssetFolderModel $folder, $newName)
+	protected function renameSourceFolder(AssetFolderModel $folder, $newName)
 	{
-		$newFullPath = $this->_getPathPrefix().$this->_getParentFullPath($folder->path).$newName.'/';
+		$newFullPath = $this->_getPathPrefix().IOHelper::getParentFolderPath($folder->path).$newName.'/';
 
 		$objectList = $this->_getFileList($this->_getPathPrefix().$folder->path);
 		$filesToMove = array();
+
 		foreach ($objectList as $object)
 		{
 			$filesToMove[$object->name] = $object;
@@ -617,17 +685,18 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		// This may or may not exist.
 		$this->_deleteObject($this->_prepareRequestURI($this->getSettings()->container, $this->_getPathPrefix().rtrim($folder->path, '/')));
 
-		return TRUE;
+		return true;
 	}
 
 	/**
 	 * Delete the source folder.
 	 *
-	 * @param AssetFolderModel $folder
-	 * @param $folderName
+	 * @param AssetFolderModel $parentFolder
+	 * @param string           $folderName
+	 *
 	 * @return bool
 	 */
-	protected function _deleteSourceFolder(AssetFolderModel $parentFolder, $folderName)
+	protected function deleteSourceFolder(AssetFolderModel $parentFolder, $folderName)
 	{
 		$container = $this->getSettings()->container;
 		$objectsToDelete = $this->_getFileList($this->_getPathPrefix().$parentFolder->path.$folderName);
@@ -646,6 +715,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Determines if a file can be moved internally from original source.
 	 *
 	 * @param BaseAssetSourceType $originalSource
+	 *
 	 * @return mixed
 	 */
 	protected function canMoveFileFrom(BaseAssetSourceType $originalSource)
@@ -654,6 +724,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		{
 			$settings = $originalSource->getSettings();
 			$theseSettings = $this->getSettings();
+
 			if ($settings->username == $theseSettings->username && $settings->apiKey == $theseSettings->apiKey)
 			{
 				return true;
@@ -664,147 +735,21 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Copy a transform for a file from source location to target location.
+	 * Purge a file from Akamai CDN.
 	 *
-	 * @param AssetFileModel $file
-	 * @param $source
-	 * @param $target
-	 * @return mixed
+	 * @param AssetFolderModel $folder
+	 * @param $filename
+	 *
+	 * @return null
 	 */
-	public function copyTransform(AssetFileModel $file, $source, $target)
+	protected function purgeCachedSourceFile(AssetFolderModel $folder, $filename)
 	{
-		$container = $this->getSettings()->container;
-		$basePath = $this->_getPathPrefix().$file->getFolder()->path;
-
-		$sourceUri = $this->_prepareRequestURI($container, $basePath.$source.'/'.$file->filename);
-		$targetUri = $this->_prepareRequestURI($container, $basePath.$target.'/'.$file->filename);
-		$this->_copyFile($sourceUri, $targetUri);
+		$uriPath = $this->_prepareRequestURI($this->getSettings()->container, $this->_getPathPrefix().$folder->path.$filename);
+		$this->_purgeObject($uriPath);
 	}
 
-	/**
-	 * Return a prefix for S3 path for settings.
-	 *
-	 * @param object|null $settings to use, if null, will use current settings
-	 * @return string
-	 */
-	private function _getPathPrefix($settings = null)
-	{
-		if (is_null($settings))
-		{
-			$settings = $this->getSettings();
-		}
-
-		if (!empty($settings->subfolder))
-		{
-			return rtrim($settings->subfolder, '/').'/';
-		}
-
-		return "";
-	}
-
-	/**
-	 * Return true if a transform exists at the location for a file.
-	 *
-	 * @param AssetFileModel $file
-	 * @param $location
-	 * @return mixed
-	 */
-	public function transformExists(AssetFileModel $file, $location)
-	{
-		return (bool) $this->_getObjectInfo($this->_getPathPrefix().$file->getFolder()->path.$location.'/'.$file->filename);
-	}
-
-	/**
-	 * Return the source's base URL.
-	 *
-	 * @return string
-	 */
-	public function getBaseUrl()
-	{
-		return $this->getSettings()->urlPrefix.$this->_getPathPrefix();
-	}
-
-	/**
-	 * Refresh a connection information and return authorization token.
-	 *
-	 * @throws Exception
-	 */
-	private function _refreshConnectionInformation()
-	{
-		$settings = $this->getSettings();
-		$username = $settings->username;
-		$apiKey = $settings->apiKey;
-
-		$headers = array(
-			'Content-Type: application/json',
-			'Accept: application/json',
-
-		);
-
-		$payload = json_encode(array(
-			'auth' => array(
-				'RAX-KSKEY:apiKeyCredentials' => array(
-					'username' => $username,
-					'apiKey' => $apiKey
-				)
-			)
-		));
-
-		$targetUrl = static::_makeAuthorizationRequestUrl();
-		$response = static::_doRequest($targetUrl, 'POST', $headers, array(), $payload);
-		$body = json_decode(substr($response, strpos($response, '{')));
-
-		if (!$body)
-		{
-			throw new Exception(Craft::t("Wrong credentials supplied for Rackspace access!"));
-		}
-
-		$token = $body->access->token->id;
-		$services = $body->access->serviceCatalog;
-
-		if (!$token || !$services)
-		{
-			throw new Exception(Craft::t("Wrong credentials supplied for Rackspace access!"));
-		}
-
-		$regions = array();
-
-		// Fetch region information
-		foreach ($services as $service)
-		{
-			if ($service->name == 'cloudFilesCDN' || $service->name == 'cloudFiles')
-			{
-				foreach ($service->endpoints as $endpoint)
-				{
-					if (empty($regions[$endpoint->region]))
-					{
-						$regions[$endpoint->region] = array();
-					}
-					if ($service->name == 'cloudFilesCDN')
-					{
-						$regions[$endpoint->region]['cdnUrl'] = $endpoint->publicURL;
-					}
-					else
-					{
-						$regions[$endpoint->region]['storageUrl'] = $endpoint->publicURL;
-					}
-				}
-			}
-		}
-
-		// Each region gets separate connection information
-		foreach ($regions as $region => $data)
-		{
-			$connection_key = $this->_getConnectionKey($username, $apiKey, $region);
-			$data = array('token' => $token, 'storageUrl' => $data['storageUrl'], 'cdnUrl' => $data['cdnUrl']);
-
-			// Store this in the access store
-			self::$_accessStore[$connection_key] = $data;
-			$this->_updateAccessData($connection_key, $data);
-
-		}
-	}
-
+	// Private Methods
+	// =========================================================================
 
 	/**
 	 * Create the authorization request URL
@@ -817,6 +762,92 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
+	 * Load Rackspace access data from DB.
+	 *
+	 * @return null
+	 */
+	private static function _loadAccessData()
+	{
+		$rows = craft()->db->createCommand()->select('connectionKey, token, storageUrl, cdnUrl')->from('rackspaceaccess')->queryAll();
+
+		foreach ($rows as $row)
+		{
+			static::$_accessStore[$row['connectionKey']] = array(
+					'token' => $row['token'],
+					'storageUrl' => $row['storageUrl'],
+					'cdnUrl' => $row['cdnUrl']);
+		}
+	}
+
+
+
+	/**
+	 * Update or insert access data for a connection key.
+	 *
+	 * @param $connectionKey
+	 * @param $data
+	 *
+	 * @return null
+	 */
+	private static function _updateAccessData($connectionKey, $data)
+	{
+		$recordExists = craft()->db->createCommand()
+			->select('id')
+			->where('connectionKey = :connectionKey', array(':connectionKey' => $connectionKey))
+			->from('rackspaceaccess')
+			->queryScalar();
+
+		if ($recordExists)
+		{
+			craft()->db->createCommand()->update('rackspaceaccess', $data, 'id = :id', array(':id' => $recordExists));
+		}
+		else
+		{
+			$data['connectionKey'] = $connectionKey;
+			craft()->db->createCommand()->insert('rackspaceaccess', $data);
+		}
+	}
+
+	/**
+	 * Extract a header from a response.
+	 *
+	 * @param $response
+	 * @param $header
+	 *
+	 * @return mixed
+	 */
+	private static function _extractHeader($response, $header)
+	{
+		preg_match('/.*'.$header.': (?P<value>.+)\r/', $response, $matches);
+
+		return isset($matches['value']) ? $matches['value'] : false;
+	}
+
+	/**
+	 * Extract the response form a response that has headers.
+	 *
+	 * @param $response
+	 *
+	 * @return string
+	 */
+	private static function _extractRequestResponse($response)
+	{
+		return rtrim(mb_substr($response, mb_strpos($response, "\r\n\r\n") + 4));
+	}
+
+	/**
+	 * Log an unexpected response.
+	 *
+	 * @param $response
+	 *
+	 * @return null
+	 */
+	private static function _logUnexpectedResponse($response)
+	{
+		Craft::log('RACKSPACE: Received unexpected response: '.$response, LogLevel::Error);
+	}
+
+	/**
 	 * Make a request and return the response.
 	 *
 	 * @param $url
@@ -824,9 +855,10 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * @param $headers
 	 * @param $curlOptions
 	 * @param $payload
+	 *
 	 * @return string
 	 */
-	private static function _doRequest($url, $method = 'GET', $headers = array(), $curlOptions = array(), $payload = "")
+	private static function _doRequest($url, $method = 'GET', $headers = array(), $curlOptions = array(), $payload = '')
 	{
 		$ch = curl_init($url);
 		if ($method == 'HEAD')
@@ -863,8 +895,146 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Get object information by path
+	 * Upload a file to Rackspace.
+	 *
+	 * @param $targetUri
+	 * @param $sourceFile
+	 *
+	 * @return bool
+	 */
+	private function _uploadFile($targetUri, $sourceFile)
+	{
+		$fileSize = IOHelper::getFileSize($sourceFile);
+		$fp = fopen($sourceFile, "r");
+
+		$headers = array(
+			'Content-type: '.IOHelper::getMimeType($sourceFile),
+			'Content-length: '.$fileSize
+		);
+
+		$curlOptions = array(
+			CURLOPT_UPLOAD => true,
+			CURLOPT_INFILE => $fp,
+			CURLOPT_INFILESIZE => $fileSize
+		);
+
+		$targetUri = $this->_prepareRequestURI($this->getSettings()->container, $targetUri);
+		$this->_doAuthenticatedRequest(static::RackspaceStorageOperation, $targetUri, 'PUT', $headers, $curlOptions);
+		fclose($fp);
+
+		return true;
+	}
+
+	/**
+	 * Return a prefix for S3 path for settings.
+	 *
+	 * @param object|null $settings The settings to use. If null, will use the current settings.
+	 *
+	 * @return string
+	 */
+	private function _getPathPrefix($settings = null)
+	{
+		if (is_null($settings))
+		{
+			$settings = $this->getSettings();
+		}
+
+		if (!empty($settings->subfolder))
+		{
+			return rtrim($settings->subfolder, '/').'/';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Refresh a connection information and return authorization token.
+	 *
+	 * @throws Exception
+	 * @return null
+	 */
+	private function _refreshConnectionInformation()
+	{
+		$settings = $this->getSettings();
+		$username = $settings->username;
+		$apiKey = $settings->apiKey;
+
+		$headers = array(
+			'Content-Type: application/json',
+			'Accept: application/json',
+
+		);
+
+		$payload = json_encode(array(
+			'auth' => array(
+				'RAX-KSKEY:apiKeyCredentials' => array(
+					'username' => $username,
+					'apiKey' => $apiKey
+				)
+			)
+		));
+
+		$targetUrl = static::_makeAuthorizationRequestUrl();
+		$response = static::_doRequest($targetUrl, 'POST', $headers, array(), $payload);
+		$body = json_decode(substr($response, strpos($response, '{')));
+
+		if (empty($body->access))
+		{
+			throw new Exception(Craft::t("Wrong credentials supplied for Rackspace access!"));
+		}
+
+		$token = $body->access->token->id;
+		$services = $body->access->serviceCatalog;
+
+		if (!$token || !$services)
+		{
+			throw new Exception(Craft::t("Wrong credentials supplied for Rackspace access!"));
+		}
+
+		$regions = array();
+
+		// Fetch region information
+		foreach ($services as $service)
+		{
+			if ($service->name == 'cloudFilesCDN' || $service->name == 'cloudFiles')
+			{
+				foreach ($service->endpoints as $endpoint)
+				{
+					if (empty($regions[$endpoint->region]))
+					{
+						$regions[$endpoint->region] = array();
+					}
+
+					if ($service->name == 'cloudFilesCDN')
+					{
+						$regions[$endpoint->region]['cdnUrl'] = $endpoint->publicURL;
+					}
+					else
+					{
+						$regions[$endpoint->region]['storageUrl'] = $endpoint->publicURL;
+					}
+				}
+			}
+		}
+
+		// Each region gets separate connection information
+		foreach ($regions as $region => $data)
+		{
+			$connection_key = $this->_getConnectionKey($username, $apiKey, $region);
+			$data = array('token' => $token, 'storageUrl' => $data['storageUrl'], 'cdnUrl' => $data['cdnUrl']);
+
+			// Store this in the access store
+			static::$_accessStore[$connection_key] = $data;
+			$this->_updateAccessData($connection_key, $data);
+
+		}
+	}
+
+	/**
+	 * Get object information by path.
+	 *
 	 * @param $path
+	 *
 	 * @return bool|object
 	 */
 	private function _getObjectInfo($path)
@@ -886,13 +1056,14 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	/**
 	 * Do an authenticated request against Rackspace severs.
 	 *
-	 * @param string $operationType operation type so we know which server to target
-	 * @param string $target URI target on the Rackspace server
-	 * @param string $method GET/POST/PUT/DELETE
-	 * @param array $headers array of headers. Authorization token will be appended to this before request.
-	 * @param array $curlOptions additional curl options to set.
-	 * @return string full response including headers.
+	 * @param string $operationType Operation type so we know which server to target.
+	 * @param string $target        URI target on the Rackspace server.
+	 * @param string $method        GET/POST/PUT/DELETE
+	 * @param array  $headers       Array of headers. Authorization token will be appended to this before request.
+	 * @param array  $curlOptions   Additional curl options to set.
+	 *
 	 * @throws Exception
+	 * @return string The full response including headers.
 	 */
 	private function _doAuthenticatedRequest($operationType, $target = '', $method = 'GET', $headers = array(), $curlOptions = array())
 	{
@@ -906,6 +1077,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 		{
 			throw new Exception(Craft::t("Please update your Rackspace source settings, including the container's region information for this source to work."));
 		}
+
 		$connectionKey = $this->_getConnectionKey($username, $apiKey, $region);
 
 		// If we don't have the access information, load it from DB
@@ -928,7 +1100,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 
 		$connectionInformation = static::$_accessStore[$connectionKey];
 
-		$headers[] = 'X-Auth-Token: ' . $connectionInformation['token'];
+		$headers[] = 'X-Auth-Token: '.$connectionInformation['token'];
 
 		switch ($operationType)
 		{
@@ -990,86 +1162,11 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Load Rackspace access data from DB.
-	 */
-	private static function _loadAccessData()
-	{
-		$rows = craft()->db->createCommand()->select('connectionKey, token, storageUrl, cdnUrl')->from('rackspaceaccess')->queryAll();
-		foreach ($rows as $row)
-		{
-			static::$_accessStore[$row['connectionKey']] = array(
-															'token' => $row['token'],
-															'storageUrl' => $row['storageUrl'],
-															'cdnUrl' => $row['cdnUrl']);
-		}
-	}
-
-	/**
-	 * Update or insert access data for a connetion key.
-	 *
-	 * @param $connectionKey
-	 * @param $data
-	 */
-	private static function _updateAccessData($connectionKey, $data)
-	{
-		$recordExists = craft()->db->createCommand()
-			->select('id')
-			->where('connectionKey = :connectionKey', array(':connectionKey' => $connectionKey))
-			->from('rackspaceaccess')
-			->queryScalar();
-
-		if ($recordExists)
-		{
-			craft()->db->createCommand()->update('rackspaceaccess', $data, 'id = :id', array(':id' => $recordExists));
-		}
-		else
-		{
-			$data['connectionKey'] = $connectionKey;
-			craft()->db->createCommand()->insert('rackspaceaccess', $data);
-		}
-	}
-
-	/**
-	 * Extract a header from a response.
-	 *
-	 * @param $response
-	 * @param $header
-	 * @return mixed
-	 */
-	private static function _extractHeader($response, $header)
-	{
-		preg_match('/.*'.$header.': (?P<value>.+)\r/', $response, $matches);
-		return isset($matches['value']) ? $matches['value'] : false;
-	}
-
-
-
-	/**
-	 * Extract the response form a response that has headers.
-	 *
-	 * @param $response
-	 * @return string
-	 */
-	private static function _extractRequestResponse($response)
-	{
-		return rtrim(mb_substr($response, mb_strpos($response, "\r\n\r\n") + 4));
-	}
-
-	/**
-	 * Log an unexpected response.
-	 *
-	 * @param $response
-	 */
-	private static function _logUnexpectedResponse($response)
-	{
-		Craft::log("RACKSPACE: Received unexpected response: " . $response);
-	}
-
-	/**
 	 * Download a file to the target location. The file will be downloaded using the public URL, instead of cURL.
 	 *
 	 * @param $path
 	 * @param $targetFile
+	 *
 	 * @return bool
 	 */
 	private function _downloadFile($path, $targetFile)
@@ -1087,40 +1184,12 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Upload a file to Rackspace.
-	 *
-	 * @param $targetUri
-	 * @param $sourceFile
-	 * @return bool
-	 */
-	public function _uploadFile($targetUri, $sourceFile)
-	{
-		$fileSize = IOHelper::getFileSize($sourceFile);
-		$fp = fopen($sourceFile, "r");
-
-		$headers = array(
-			'Content-type: ' . IOHelper::getMimeType($sourceFile),
-			'Content-length: ' . $fileSize
-		);
-
-		$curlOptions = array(
-			CURLOPT_UPLOAD => true,
-			CURLOPT_INFILE => $fp,
-			CURLOPT_INFILESIZE => $fileSize
-		);
-
-		$targetUri = $this->_prepareRequestURI($this->getSettings()->container, $targetUri);
-		$this->_doAuthenticatedRequest(static::RackspaceStorageOperation, $targetUri, 'PUT', $headers, $curlOptions);
-		fclose($fp);
-		return true;
-	}
-
-	/**
 	 * Get file list from Rackspace.
 	 *
 	 * @param $prefix
-	 * @return mixed
+	 *
 	 * @throws Exception
+	 * @return mixed
 	 */
 	private function _getFileList($prefix = '')
 	{
@@ -1143,6 +1212,8 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Delete a file on Rackspace.
 	 *
 	 * @param $uriPath
+	 *
+	 * @return null
 	 */
 	private function _deleteObject($uriPath)
 	{
@@ -1153,6 +1224,8 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 * Purge a file from Akamai CDN
 	 *
 	 * @param $uriPath
+	 *
+	 * @return null
 	 */
 	private function _purgeObject($uriPath)
 	{
@@ -1160,21 +1233,12 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Purge a file from Akamai CDN.
-	 *
-	 * @param AssetFolderModel $folder
-	 * @param $filename
-	 */
-	protected function _purgeCachedSourceFile(AssetFolderModel $folder, $filename)
-	{
-		$uriPath = $this->_prepareRequestURI($this->getSettings()->container, $this->_getPathPrefix() . $folder->path . $filename);
-		$this->_purgeObject($uriPath);
-	}
-
-	/**
 	 * Copy a file on Rackspace.
+	 *
 	 * @param $sourceUri
 	 * @param $targetUri
+	 *
+	 * @return null
 	 */
 	private function _copyFile($sourceUri, $targetUri)
 	{
@@ -1187,6 +1251,7 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	 *
 	 * @param $container
 	 * @param $uri
+	 *
 	 * @return string
 	 */
 	private function _prepareRequestURI($container, $uri = '')
@@ -1195,26 +1260,30 @@ class RackspaceAssetSourceType extends BaseAssetSourceType
 	}
 
 	/**
-	 * Return true if the source is a remote source.
-	 *
-	 * @return bool
-	 */
-	public function isRemote()
-	{
-		return true;
-	}
-
-	/**
 	 * Get a connection key by parameters.
 	 *
 	 * @param $username
 	 * @param $apiKey
 	 * @param $region
+	 *
 	 * @return string
 	 */
 	private function _getConnectionKey($username, $apiKey, $region)
 	{
 		return implode('#', array($username, $apiKey, $region));
+	}
+
+	/**
+	 * Get a file's S3 path.
+	 *
+	 * @param AssetFileModel $file
+	 *
+	 * @return string
+	 */
+	private function _getRackspacePath(AssetFileModel $file)
+	{
+		$folder = $file->getFolder();
+		return $this->_getPathPrefix().$folder->path.$file->filename;
 	}
 
 }

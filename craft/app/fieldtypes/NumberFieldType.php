@@ -2,20 +2,20 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class NumberFieldType
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.fieldtypes
+ * @since     1.0
  */
 class NumberFieldType extends BaseFieldType
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * Returns the type of field this is.
 	 *
@@ -24,21 +24,6 @@ class NumberFieldType extends BaseFieldType
 	public function getName()
 	{
 		return Craft::t('Number');
-	}
-
-	/**
-	 * Defines the settings.
-	 *
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineSettings()
-	{
-		return array(
-			'min'      => array(AttributeType::Number, 'default' => 0),
-			'max'      => array(AttributeType::Number, 'compare' => '>= min'),
-			'decimals' => array(AttributeType::Number, 'default' => 0),
-		);
 	}
 
 	/**
@@ -70,10 +55,16 @@ class NumberFieldType extends BaseFieldType
 	 *
 	 * @param string $name
 	 * @param mixed  $value
+	 *
 	 * @return string
 	 */
 	public function getInputHtml($name, $value)
 	{
+		if ($this->isFresh() && ($value < $this->settings->min || $value > $this->settings->max))
+		{
+			$value = $this->settings->min;
+		}
+
 		return craft()->templates->render('_includes/forms/text', array(
 			'name'  => $name,
 			'value' => craft()->numberFormatter->formatDecimal($value, false),
@@ -85,6 +76,7 @@ class NumberFieldType extends BaseFieldType
 	 * Returns the input value as it should be saved to the database.
 	 *
 	 * @param mixed $data
+	 *
 	 * @return mixed
 	 */
 	public function prepValueFromPost($data)
@@ -97,5 +89,22 @@ class NumberFieldType extends BaseFieldType
 		{
 			return LocalizationHelper::normalizeNumber($data);
 		}
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
+	 * Defines the settings.
+	 *
+	 * @return array
+	 */
+	protected function defineSettings()
+	{
+		return array(
+			'min'      => array(AttributeType::Number, 'default' => 0),
+			'max'      => array(AttributeType::Number, 'compare' => '>= min'),
+			'decimals' => array(AttributeType::Number, 'default' => 0),
+		);
 	}
 }

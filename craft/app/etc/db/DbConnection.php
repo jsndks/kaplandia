@@ -2,22 +2,31 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class DbConnection
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.etc.db
+ * @since     1.0
  */
 class DbConnection extends \CDbConnection
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
+	 * Initializes the DbConnection (`craft()->db`) component.
 	 *
+	 * This method is required by {@link \IApplicationComponent} and is invoked by Craft when the `craft()-db` is first
+	 * used.
+	 *
+	 * This method does it's best to make sure it can connect to the database with the supplied credentials and
+	 * configurations and gracefully handle the cases where it can't.
+	 *
+	 * @throws DbConnectException
+	 * @return null
 	 */
 	public function init()
 	{
@@ -80,6 +89,7 @@ class DbConnection extends \CDbConnection
 
 	/**
 	 * @param null $query
+	 *
 	 * @return DbCommand
 	 */
 	public function createCommand($query = null)
@@ -104,6 +114,7 @@ class DbConnection extends \CDbConnection
 
 	/**
 	 * @param $name
+	 *
 	 * @return string
 	 */
 	public function quoteDatabaseName($name)
@@ -114,8 +125,9 @@ class DbConnection extends \CDbConnection
 	/**
 	 * Returns whether a table exists.
 	 *
-	 * @param string $table
-	 * @param bool $refresh
+	 * @param string    $table
+	 * @param bool|null $refresh
+	 *
 	 * @return bool
 	 */
 	public function tableExists($table, $refresh = null)
@@ -133,9 +145,10 @@ class DbConnection extends \CDbConnection
 	/**
 	 * Checks if a column exists in a table.
 	 *
-	 * @param string $table
-	 * @param string $column
-	 * @param bool $refresh
+	 * @param string    $table
+	 * @param string    $column
+	 * @param bool|null $refresh
+	 *
 	 * @return bool
 	 */
 	public function columnExists($table, $column, $refresh = null)
@@ -160,20 +173,13 @@ class DbConnection extends \CDbConnection
 	}
 
 	/**
-	 * @return bool
-	 */
-	public function isDbConnectionValid()
-	{
-		return $this->_isDbConnectionValid;
-	}
-
-	/**
 	 * @return string
 	 */
 	public function getNormalizedTablePrefix()
 	{
 		// Table prefixes cannot be longer than 5 characters
 		$tablePrefix = rtrim(craft()->config->get('tablePrefix', ConfigFile::Db), '_');
+
 		if ($tablePrefix)
 		{
 			if (strlen($tablePrefix) > 5)
@@ -192,14 +198,18 @@ class DbConnection extends \CDbConnection
 
 	}
 
+	// Private Methods
+	// =========================================================================
+
 	/**
-	 * Returns the correct connection string depending on whether a unixSocket is specific or not in the db config.
+	 * Returns the correct connection string depending on whether a unixSocket is specified or not in the db config.
 	 *
 	 * @return string
 	 */
 	private function _processConnectionString()
 	{
 		$unixSocket = craft()->config->get('unixSocket', ConfigFile::Db);
+
 		if (!empty($unixSocket))
 		{
 			return strtolower('mysql:unix_socket='.$unixSocket.';dbname=').craft()->config->get('database', ConfigFile::Db).';';

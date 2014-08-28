@@ -2,22 +2,35 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class GetHelpModel
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.models
+ * @since     1.0
  */
 class GetHelpModel extends BaseModel
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
-	 * @access protected
+	 * @return array
+	 */
+	public function rules()
+	{
+		// maxSize is 3MB
+		return array_merge(parent::rules(), array(
+			array('attachment', 'file', 'maxSize' => 3145728, 'allowEmpty' => true),
+		));
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
 	 * @return array
 	 */
 	protected function defineAttributes()
@@ -30,13 +43,5 @@ class GetHelpModel extends BaseModel
 			'attachTemplates'  => AttributeType::Bool,
 			'attachment'       => AttributeType::Mixed,
 		);
-	}
-
-	public function rules()
-	{
-		// maxSize is 3MB
-		return array_merge(parent::rules(), array(
-			array('attachment', 'file', 'maxSize' => 3145728, 'allowEmpty' => true),
-		));
 	}
 }

@@ -2,23 +2,52 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Delete Stale Template Caches Task
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Delete Stale Template Caches Task
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.tasks
+ * @since     2.0
  */
 class DeleteStaleTemplateCachesTask extends BaseTask
 {
-	private $_criteria;
+	// Properties
+	// =========================================================================
+
+	/**
+	 * @var
+	 */
 	private $_elementIds;
+
+	/**
+	 * @var
+	 */
+	private $_elementType;
+
+	/**
+	 * @var
+	 */
+	private $_batch;
+
+	/**
+	 * @var
+	 */
+	private $_batchRows;
+
+	/**
+	 * @var
+	 */
+	private $_noMoreRows;
+
+	/**
+	 * @var
+	 */
 	private $_deletedCacheIds;
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns the default description for this task.
@@ -31,48 +60,20 @@ class DeleteStaleTemplateCachesTask extends BaseTask
 	}
 
 	/**
-	 * Defines the settings.
-	 *
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineSettings()
-	{
-		return array(
-			'elementId' => AttributeType::Mixed,
-		);
-	}
-
-	/**
 	 * Gets the total number of steps for this task.
 	 *
 	 * @return int
 	 */
 	public function getTotalSteps()
 	{
-		$this->_deletedCacheIds = array();
-
 		$elementId = $this->getSettings()->elementId;
 
 		// What type of element(s) are we dealing with?
-		$elementType = craft()->elements->getElementTypeById($elementId);
+		$this->_elementType = craft()->elements->getElementTypeById($elementId);
 
-		if (!$elementType)
+		if (!$this->_elementType)
 		{
 			return 0;
-		}
-
-		$query = craft()->db->createCommand()
-			->select('*')
-			->from('templatecachecriteria');
-
-		if (is_array($elementType))
-		{
-			$query->where(array('in', 'type', $elementType));
-		}
-		else
-		{
-			$query->where('type = :type', array(':type' => $elementType));
 		}
 
 		if (is_array($elementId))
@@ -84,38 +85,113 @@ class DeleteStaleTemplateCachesTask extends BaseTask
 			$this->_elementIds = array($elementId);
 		}
 
-		$this->_criteria = $query->queryAll();
+		// Figure out how many rows we're dealing with
+		$totalRows = $this->_getQuery()->count('id');
+		$this->_batch = 0;
+		$this->_noMoreRows = false;
+		$this->_deletedCacheIds = array();
 
-		return count($this->_criteria);
+		return $totalRows;
 	}
 
 	/**
 	 * Runs a task step.
 	 *
 	 * @param int $step
+	 *
 	 * @return bool
 	 */
 	public function runStep($step)
 	{
-		$row = $this->_criteria[$step];
+		// Do we need to grab a fresh batch?
+		if (empty($this->_batchRows))
+		{
+			if (!$this->_noMoreRows)
+			{
+				$this->_batch++;
+				$this->_batchRows = $this->_getQuery()
+					->offset(100*($this->_batch-1))
+					->limit(100*$this->_batch)
+					->queryAll();
+
+				// Still no more rows?
+				if (!$this->_batchRows)
+				{
+					$this->_noMoreRows = true;
+				}
+			}
+
+			if ($this->_noMoreRows)
+			{
+				return true;
+			}
+		}
+
+		$row = array_shift($this->_batchRows);
 
 		if (!in_array($row['cacheId'], $this->_deletedCacheIds))
 		{
 			$params = JsonHelper::decode($row['criteria']);
 			$criteria = craft()->elements->getCriteria($row['type'], $params);
 			$criteriaElementIds = $criteria->ids();
+			$cacheIdsToDelete = array();
 
 			foreach ($this->_elementIds as $elementId)
 			{
 				if (in_array($elementId, $criteriaElementIds))
 				{
-					craft()->templateCache->deleteCacheById($row['cacheId']);
-					$this->_deletedCacheIds[] = $row['cacheId'];
+					$cacheIdsToDelete[] = $row['cacheId'];
 					break;
 				}
+			}
+
+			if ($cacheIdsToDelete)
+			{
+				craft()->templateCache->deleteCacheById($cacheIdsToDelete);
+				$this->_deletedCacheIds = array_merge($this->_deletedCacheIds, $cacheIdsToDelete);
 			}
 		}
 
 		return true;
+	}
+
+	// Protected Methods
+	// =========================================================================
+
+	/**
+	 * Defines the settings.
+	 *
+	 * @return array
+	 */
+	protected function defineSettings()
+	{
+		return array(
+			'elementId' => AttributeType::Mixed,
+		);
+	}
+
+	// Private Methods
+	// =========================================================================
+
+	/**
+	 * Returns a DbCommand object for selecting criteria that could be dropped by this task.
+	 *
+	 * @return DbCommand
+	 */
+	private function _getQuery()
+	{
+		$query = craft()->db->createCommand()
+			->from('templatecachecriteria');
+
+		if (is_array($this->_elementType))
+		{
+			$query->where(array('in', 'type', $this->_elementType));
+		}
+		else
+		{
+			$query->where('type = :type', array(':type' => $this->_elementType));
+		}
+
+		return $query;
 	}
 }

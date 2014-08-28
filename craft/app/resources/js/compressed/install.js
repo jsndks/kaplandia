@@ -1,7 +1,8 @@
 /*
  Copyright (c) 2014, Pixel & Tonic, Inc.
  @license   http://buildwithcraft.com/license Craft License Agreement
- @link      http://buildwithcraft.com
+ @see       http://buildwithcraft.com
+ @package   craft.app.resources
 */
 (function(a){Craft.Installer=Garnish.Base.extend({$bg:null,$screens:null,$currentScreen:null,$accountSubmitBtn:null,$siteSubmitBtn:null,loading:!1,init:function(){this.$bg=a("#bg");this.$screens=Garnish.$bod.children(".modal");this.addListener(a("#beginbtn"),"activate","showAccountScreen")},showAccountScreen:function(b){this.showScreen(1,a.proxy(function(){a("#beginbtn").remove();this.$accountSubmitBtn=a("#accountsubmit");this.addListener(this.$accountSubmitBtn,"activate","validateAccount");this.addListener(a("#accountform"),
 "submit","validateAccount")},this))},validateAccount:function(b){b.preventDefault();this.validate("account",["username","email","password"],a.proxy(this,"showSiteScreen"))},showSiteScreen:function(){this.showScreen(2,a.proxy(function(){this.$siteSubmitBtn=a("#sitesubmit");this.addListener(this.$siteSubmitBtn,"activate","validateSite");this.addListener(a("#siteform"),"submit","validateSite")},this))},validateSite:function(b){b.preventDefault();this.validate("site",["siteName","siteUrl"],a.proxy(this,

@@ -2,26 +2,33 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * EntriesService provides APIs for managing entries in Craft.
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * An instance of EntriesService is globally accessible in Craft via {@link WebApp::entries `craft()->entries`}.
+ *
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.services
+ * @since     1.0
  */
 class EntriesService extends BaseApplicationComponent
 {
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * Returns an entry by its ID.
 	 *
-	 * @param int $entryId
-	 * @param string|null $localeId
-	 * @return EntryModel|null
+	 * ```php
+	 * $entry = craft()->entries->getEntryById($entryId);
+	 * ```
+	 *
+	 * @param int    $entryId  The entry’s ID.
+	 * @param string $localeId The locale to fetch the entry in. Defaults to {@link WebApp::language `craft()->language`}.
+	 *
+	 * @return EntryModel|null The entry with the given ID, or `null` if an entry could not be found.
 	 */
 	public function getEntryById($entryId, $localeId = null)
 	{
@@ -29,11 +36,30 @@ class EntriesService extends BaseApplicationComponent
 	}
 
 	/**
-	 * Saves an entry.
+	 * Saves a new or existing entry.
 	 *
-	 * @param EntryModel $entry
+	 * ```php
+	 * $entry = new EntryModel();
+	 * $entry->sectionId = 10;
+	 * $entry->typeId    = 1;
+	 * $entry->authorId  = 5;
+	 * $entry->enabled   = true;
+	 *
+	 * $entry->getContent()->title = "Hello World!";
+	 * $entry->getContent()->body  = "<p>I can’t believe I literally just called this “Hello World!”.</p>";
+	 *
+	 * $success = craft()->entries->saveEntry($entry);
+	 *
+	 * if (!$success)
+	 * {
+	 *     Craft::log('Couldn’t save the entry "'.$entry->title.'"', LogLevel::Error);
+	 * }
+	 * ```
+	 *
+	 * @param EntryModel $entry The entry to be saved.
+	 *
 	 * @throws \Exception
-	 * @return bool
+	 * @return bool Whether the entry was saved successfully.
 	 */
 	public function saveEntry(EntryModel $entry)
 	{
@@ -167,9 +193,14 @@ class EntriesService extends BaseApplicationComponent
 					}
 
 					// Save a new version
-					if (craft()->getEdition() == Craft::Pro)
+					if (craft()->getEdition() >= Craft::Client && $section->enableVersioning)
 					{
 						craft()->entryRevisions->saveVersion($entry);
+					}
+
+					if ($transaction !== null)
+					{
+						$transaction->commit();
 					}
 
 					// Fire an 'onSaveEntry' event
@@ -177,11 +208,6 @@ class EntriesService extends BaseApplicationComponent
 						'entry'      => $entry,
 						'isNewEntry' => $isNewEntry
 					)));
-
-					if ($transaction !== null)
-					{
-						$transaction->commit();
-					}
 
 					return true;
 				}
@@ -229,9 +255,11 @@ class EntriesService extends BaseApplicationComponent
 
 	/**
 	 * Deletes an entry(s).
-	 * @param EntryModel|array $entries
+	 *
+	 * @param EntryModel|EntryModel[] $entries An entry, or an array of entries, to be deleted.
+	 *
 	 * @throws \Exception
-	 * @return bool
+	 * @return bool Whether the entry deletion was successful.
 	 */
 	public function deleteEntry($entries)
 	{
@@ -312,8 +340,9 @@ class EntriesService extends BaseApplicationComponent
 	/**
 	 * Deletes an entry(s) by its ID.
 	 *
-	 * @param int|array $entryId
-	 * @return bool
+	 * @param int|array $entryId The ID of an entry to delete, or an array of entry IDs.
+	 *
+	 * @return bool Whether the entry deletion was successful.
 	 */
 	public function deleteEntryById($entryId)
 	{
@@ -339,13 +368,12 @@ class EntriesService extends BaseApplicationComponent
 		}
 	}
 
-	// Events
-	// ======
-
 	/**
 	 * Fires an 'onBeforeSaveEntry' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeSaveEntry(Event $event)
 	{
@@ -356,6 +384,8 @@ class EntriesService extends BaseApplicationComponent
 	 * Fires an 'onSaveEntry' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onSaveEntry(Event $event)
 	{
@@ -366,6 +396,8 @@ class EntriesService extends BaseApplicationComponent
 	 * Fires an 'onBeforeDeleteEntry' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onBeforeDeleteEntry(Event $event)
 	{
@@ -376,20 +408,22 @@ class EntriesService extends BaseApplicationComponent
 	 * Fires an 'onDeleteEntry' event.
 	 *
 	 * @param Event $event
+	 *
+	 * @return null
 	 */
 	public function onDeleteEntry(Event $event)
 	{
 		$this->raiseEvent('onDeleteEntry', $event);
 	}
 
-	// Private methods
-	// ===============
+	// Private Methods
+	// =========================================================================
 
 	/**
 	 * Checks if an entry was submitted with a new parent entry selected.
 	 *
-	 * @access private
 	 * @param EntryModel $entry
+	 *
 	 * @return bool
 	 */
 	private function _checkForNewParent(EntryModel $entry)

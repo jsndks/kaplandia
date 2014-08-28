@@ -10,7 +10,7 @@ body.rtl .message:hover:after { left: 15px; }
 
 .message .subject { padding-bottom: 15px; border-bottom: 1px solid #dbdbdb; margin-bottom: 15px; }
 
-.message .body { font-size: 12px; line-height: 16px; font-family: Courier, monospace; color: #8e98a4; }
+.message .body { font-size: 12px; line-height: 16px; font-family: Courier, monospace; color: #8f98a3; }
 
 .modal.message-settings { width: 500px; }
 

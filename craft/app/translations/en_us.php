@@ -7,17 +7,7 @@
  * @author    Pixel & Tonic, Inc.
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- * Craft by Pixel & Tonic
- *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
- * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
- * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
+ * @see       http://buildwithcraft.com
  */
 
 return array (
@@ -42,11 +32,12 @@ return array (
 		"{{link}}\n\n" .
 		"If you weren't expecting this email, just ignore it.",
 
+	'test_email_heading' => 'When you are testing your email settings:',
 	'test_email_subject' => 'This is a test email from Craft',
 	'test_email_body' => "Hey {{user.friendlyName}},\n\n".
 		"Congratulations! Craft was successfully able to send an email.\n\n".
 		"Here are the settings you used:\n\n".
 		"{% for key, setting in settings %}".
-		"{{ key }}:  {{ setting }}\n".
+		"{{ key }}:  {{ setting }}\n\n".
 		"{% endfor %}",
 );

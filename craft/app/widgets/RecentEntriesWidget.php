@@ -2,21 +2,27 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class RecentEntriesWidget
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.widgets
+ * @since     1.0
  */
 class RecentEntriesWidget extends BaseWidget
 {
+	// Properties
+	// =========================================================================
+
+	/**
+	 * @var bool
+	 */
 	public $multipleInstances = true;
+
+	// Public Methods
+	// =========================================================================
 
 	/**
 	 * Returns the type of widget this is.
@@ -26,24 +32,6 @@ class RecentEntriesWidget extends BaseWidget
 	public function getName()
 	{
 		return Craft::t('Recent Entries');
-	}
-
-	/**
-	 * Defines the settings.
-	 *
-	 * @access protected
-	 * @return array
-	 */
-	protected function defineSettings()
-	{
-		if (craft()->getEdition() >= Craft::Client)
-		{
-			$settings['section'] = array(AttributeType::Mixed, 'default' => '*');
-		}
-
-		$settings['limit'] = array(AttributeType::Number, 'default' => 10);
-
-		return $settings;
 	}
 
 	/**
@@ -75,7 +63,8 @@ class RecentEntriesWidget extends BaseWidget
 
 				if ($section)
 				{
-					return Craft::t('Recently in {section}', array('section' => $section->name));
+					$translatedSectionName = Craft::t($section->name);
+					return Craft::t('Recently in {section}', array('section' => $translatedSectionName));
 				}
 			}
 		}
@@ -115,42 +104,79 @@ class RecentEntriesWidget extends BaseWidget
 		));
 	}
 
+	// Protected Methods
+	// =========================================================================
+
 	/**
+	 * Defines the settings.
 	 *
+	 * @return array
+	 */
+	protected function defineSettings()
+	{
+		return array(
+			'section' => array(AttributeType::Mixed, 'default' => '*'),
+			'limit'   => array(AttributeType::Number, 'default' => 10),
+		);
+	}
+
+	// Private Methods
+	// =========================================================================
+
+	/**
+	 * Returns the recent entries, based on the widget settings and user permissions.
+	 *
+	 * @return array
 	 */
 	private function _getEntries()
 	{
-		$sectionIds = $this->_getSectionIds();
+		// Make sure that the user is actually allowed to edit entries in the current locale. Otherwise grab entries in
+		// their first editable locale.
+		$editableLocaleIds = craft()->i18n->getEditableLocaleIds();
+		$targetLocale = craft()->language;
 
-		$somethingToDisplay = false;
-
-		// If they have Client or Pro installed, only display the sections they are allowed to edit.
-		if (craft()->getEdition() >= Craft::Client)
+		if (!$editableLocaleIds)
 		{
-			if ($this->getSettings()->section == '*' || in_array($this->getSettings()->section, $sectionIds))
-			{
-				$somethingToDisplay = true;
-			}
+			return array();
 		}
 
-		// If they don't have Client or Pro, OR they have Client/Pro and have permission to edit sections in it.
-		if ((craft()->getEdition() == Craft::Personal || (craft()->getEdition() >= Craft::Client && $somethingToDisplay)) && count($sectionIds) > 0)
+		if (!in_array($targetLocale, $editableLocaleIds))
 		{
-			$criteria = $this->_getCriteria($sectionIds);
-			$entries = $criteria->find();
-		}
-		else
-		{
-			$entries = array();
+			$targetLocale = $editableLocaleIds[0];
 		}
 
-		return $entries;
+		// Normalize the target section ID value.
+		$editableSectionIds = $this->_getEditableSectionIds();
+		$targetSectionId = $this->getSettings()->section;
+
+		if (!$targetSectionId || $targetSectionId == '*' || !in_array($targetSectionId, $editableSectionIds))
+		{
+			$targetSectionId = array_merge($editableSectionIds);
+		}
+
+		if (!$targetSectionId)
+		{
+			return array();
+		}
+
+		$criteria = craft()->elements->getCriteria(ElementType::Entry);
+		$criteria->status = null;
+		$criteria->localeEnabled = null;
+		$criteria->locale = $targetLocale;
+		$criteria->sectionId = $targetSectionId;
+		$criteria->editable = true;
+		$criteria->limit = $this->getSettings()->limit;
+		$criteria->order = 'dateCreated desc';
+
+		return $criteria->find();
 	}
 
 	/**
+	 * Returns the Channel and Structure section IDs that the user is allowed to edit.
+	 *
 	 * @return array
 	 */
-	private function _getSectionIds()
+	private function _getEditableSectionIds()
 	{
 		$sectionIds = array();
 
@@ -163,38 +189,5 @@ class RecentEntriesWidget extends BaseWidget
 		}
 
 		return $sectionIds;
-	}
-
-	/**
-	 * @param $sectionIds
-	 * @throws Exception
-	 * @return ElementCriteriaModel
-	 */
-	private function _getCriteria($sectionIds)
-	{
-		$criteria = craft()->elements->getCriteria(ElementType::Entry);
-		$criteria->status = null;
-		$criteria->localeEnabled = null;
-		$criteria->limit = $this->getSettings()->limit;
-		$criteria->order = 'dateCreated DESC';
-
-		// Section is only defined if Client/Pro is installed.
-		if (craft()->getEdition() >= Craft::Client)
-		{
-			if ($this->getSettings()->section == '*')
-			{
-				$criteria->sectionId = $sectionIds;
-			}
-			else
-			{
-				$criteria->sectionId = $this->getSettings()->section;
-			}
-		}
-		else
-		{
-			$criteria->sectionId = $sectionIds;
-		}
-
-		return $criteria;
 	}
 }

@@ -2,24 +2,23 @@
 namespace Craft;
 
 /**
- * Craft by Pixel & Tonic
+ * Class DbHelper
  *
- * @package   Craft
- * @author    Pixel & Tonic, Inc.
+ * @author    Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @copyright Copyright (c) 2014, Pixel & Tonic, Inc.
  * @license   http://buildwithcraft.com/license Craft License Agreement
- * @link      http://buildwithcraft.com
- */
-
-/**
- *
+ * @see       http://buildwithcraft.com
+ * @package   craft.app.helpers
+ * @since     1.0
  */
 class DbHelper
 {
+	// Properties
+	// =========================================================================
+
 	/**
-	 * Default column configs
+	 * The default column configs.
 	 *
-	 * @static
 	 * @var array
 	 */
 	public static $columnTypeDefaults = array(
@@ -35,22 +34,27 @@ class DbHelper
 	);
 
 	/**
-	 * Numeric column types
+	 * Numeric column types.
 	 *
-	 * @access private
-	 * @static
 	 * @var array
 	 */
 	private static $_numericColumnTypes = array(ColumnType::TinyInt, ColumnType::SmallInt, ColumnType::MediumInt, ColumnType::Int, ColumnType::BigInt, ColumnType::Decimal);
 
 	/**
-	 * Textual column types
+	 * Textual column types.
 	 *
-	 * @access private
-	 * @static
 	 * @var array
 	 */
 	private static $_textualColumnTypes = array(ColumnType::Char, ColumnType::Varchar, ColumnType::TinyText, ColumnType::Text, ColumnType::MediumText, ColumnType::LongText);
+
+	/**
+	 * @var array
+	 */
+	private static $_operators = array('not ', '!=', '<=', '>=', '<', '>', '=');
+
+	// Public Methods
+	// =========================================================================
+
 	/**
 	 * Normalizes a column's config.
 	 *
@@ -60,10 +64,10 @@ class DbHelper
 	 * 2. array(ColumnType::TypeName [, 'other' => 'settings' ... ] )
 	 * 3. array('column' => ColumnType::TypeName [, 'other' => 'settings' ... ] )
 	 *
-	 * This function normalizes on the 3rd, merges in the default config settings for the column type,
-	 * and renames 'maxLength' to 'length'
+	 * This function normalizes on the 3rd, merges in the default config settings for the column type, and renames 'maxLength' to 'length'.
 	 *
 	 * @param string|array $config
+	 *
 	 * @return array
 	 */
 	public static function normalizeAttributeConfig($config)
@@ -113,11 +117,11 @@ class DbHelper
 	}
 
 	/**
-	 * Generates the column definition SQL for a column
+	 * Generates the column definition SQL for a column.
 	 *
 	 * @param array $config
+	 *
 	 * @return string
-	 * @static
 	 */
 	public static function generateColumnDefinition($config)
 	{
@@ -242,8 +246,8 @@ class DbHelper
 	/**
 	 * Prepares a table name for Yii to add its table prefix
 	 *
-	 * @static
 	 * @param mixed $table The table name or an array of table names
+	 *
 	 * @return mixed The modified table name(s)
 	 */
 	public static function addTablePrefix($table)
@@ -266,8 +270,9 @@ class DbHelper
 	/**
 	 * Returns a foreign key name based on the table and column names.
 	 *
-	 * @param string $table
+	 * @param string       $table
 	 * @param string|array $columns
+	 *
 	 * @return string
 	 */
 	public static function getForeignKeyName($table, $columns)
@@ -280,24 +285,26 @@ class DbHelper
 	/**
 	 * Returns an index name based on the table, column names, and whether it should be unique.
 	 *
-	 * @param string $table
+	 * @param string       $table
 	 * @param string|array $columns
-	 * @param bool $unique
+	 * @param bool         $unique
+	 *
 	 * @return string
 	 */
 	public static function getIndexName($table, $columns, $unique = false)
 	{
 		$columns = ArrayHelper::stringToArray($columns);
 		$name = craft()->db->tablePrefix.$table.'_'.implode('_', $columns).($unique ? '_unq' : '').'_idx';
+
 		return static::normalizeDbObjectName($name);
 	}
 
 	/**
 	 * Returns a primary key name based on the table and column names.
 	 *
-	 * @param string $table
+	 * @param string       $table
 	 * @param string|array $columns
-	 * @param bool $unique
+	 *
 	 * @return string
 	 */
 	public static function getPrimaryKeyName($table, $columns)
@@ -310,8 +317,8 @@ class DbHelper
 	/**
 	 * Ensures that an object name is within the schema's limit.
 	 *
-	 * @static
 	 * @param string $name
+	 *
 	 * @return string
 	 */
 	public static function normalizeDbObjectName($name)
@@ -353,7 +360,6 @@ class DbHelper
 	}
 
 	/**
-	 * @static
 	 * @return array
 	 */
 	public static function getAuditColumnConfig()
@@ -368,9 +374,10 @@ class DbHelper
 	/**
 	 * Parses a service param value to a DbCommand where condition.
 	 *
-	 * @param string $key
+	 * @param string       $key
 	 * @param string|array $values
-	 * @param array &$params
+	 * @param array        &$params
+	 *
 	 * @return mixed
 	 */
 	public static function parseParam($key, $values, &$params)
@@ -390,7 +397,7 @@ class DbHelper
 			return '';
 		}
 
-		$firstVal = StringHelper::toLowerCase($values[0]);
+		$firstVal = StringHelper::toLowerCase(ArrayHelper::getFirstValue($values));
 
 		if ($firstVal == 'and' || $firstVal == 'or')
 		{
@@ -455,9 +462,10 @@ class DbHelper
 	/**
 	 * Normalizes date params and then sends them off to parseParam().
 	 *
-	 * @param string $key
+	 * @param string                $key
 	 * @param string|array|DateTime $values
-	 * @param array &$params
+	 * @param array                 &$params
+	 *
 	 * @return mixed
 	 */
 	public static function parseDateParam($key, $values, &$params)
@@ -499,17 +507,14 @@ class DbHelper
 		return static::parseParam($key, $normalizedValues, $params);
 	}
 
-	/**
-	 * @access private
-	 * @static
-	 */
-	private static $_operators = array('not ', '!=', '<=', '>=', '<', '>', '=');
+	// Private Methods
+	// =========================================================================
 
 	/**
 	 * Extracts the operator from a DB param and returns it.
 	 *
-	 * @access private
 	 * @param string &$value
+	 *
 	 * @return string
 	 */
 	private static function _parseParamOperator(&$value)
