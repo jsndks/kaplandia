@@ -15,8 +15,8 @@
 
 					{% if blogPost.image | length %}
 					    {% for asset in blogPost.image %}
-					    	<!-- <div class="imgPreview" style="background-image: url({{ asset.url }})"></div> -->
-					    	<img class="js-lazyload" src="asset.url" alt="" />
+					    	<div class="imgPreview" style="background-image: url({{ asset.url }})"></div>
+					    	<!-- <img class="js-lazyload" src="asset.url" alt="" /> -->
 					    {% endfor %}
 					{% endif %}
 

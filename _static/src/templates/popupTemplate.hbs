@@ -1,17 +1,14 @@
 <div class="pinPopup">
     <div class="pinPopup-hd">
         <a href="#"><h2 class="pinPopup-hd-title">{{ title }}</h2></a>
-        {{#each posts}}
-        <a class="pinPopup-hd-link" href="{{ url }}" title="{{ title }}">Read More</a>
-        {{/each}}
+        <div class="pinPopup-bd-date">{{ date }}</div>
     </div>
     <div class="pinPopup-bd">
+        <div class="pinPopup-bd-sub">{{description}}</div>
 
-        {{#each address}}
-            <h3 class="pinPopup-bd-title">{{this}}</h3>
+        {{#each posts}}
+            <a class="pinPopup-hd-link" href="{{ url }}" title="{{ title }}">Read More</a>
         {{/each}}
 
-        <div class="pinPopup-bd-sub">Thousand Trails Campground</div>
-        <div class="pinPopup-bd-date">{{ date }}</div>
     </div>
 </div>
