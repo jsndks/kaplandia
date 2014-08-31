@@ -11,7 +11,7 @@ helpers = this.merge(helpers, Handlebars.helpers); data = data || {};
 function program1(depth0,data) {
   
   var buffer = "", stack1, helper;
-  buffer += "\n        <a class=\"pinPopup-hd-link\" href=\"";
+  buffer += "\n            <a class=\"pinPopup-hd-link\" href=\"";
   if (helper = helpers.url) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.url); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
@@ -23,30 +23,22 @@ function program1(depth0,data) {
   return buffer;
   }
 
-function program3(depth0,data) {
-  
-  var buffer = "";
-  buffer += "\n            <h3 class=\"pinPopup-bd-title\">"
-    + escapeExpression((typeof depth0 === functionType ? depth0.apply(depth0) : depth0))
-    + "</h3>\n        ";
-  return buffer;
-  }
-
   buffer += "<div class=\"pinPopup\">\n    <div class=\"pinPopup-hd\">\n        <a href=\"#\"><h2 class=\"pinPopup-hd-title\">";
   if (helper = helpers.title) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.title); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "</h2></a>\n        ";
-  stack1 = helpers.each.call(depth0, (depth0 && depth0.posts), {hash:{},inverse:self.noop,fn:self.program(1, program1, data),data:data});
-  if(stack1 || stack1 === 0) { buffer += stack1; }
-  buffer += "\n    </div>\n    <div class=\"pinPopup-bd\">\n\n        ";
-  stack1 = helpers.each.call(depth0, (depth0 && depth0.address), {hash:{},inverse:self.noop,fn:self.program(3, program3, data),data:data});
-  if(stack1 || stack1 === 0) { buffer += stack1; }
-  buffer += "\n\n        <div class=\"pinPopup-bd-sub\">Thousand Trails Campground</div>\n        <div class=\"pinPopup-bd-date\">";
+    + "</h2></a>\n        <div class=\"pinPopup-bd-date\">";
   if (helper = helpers.date) { stack1 = helper.call(depth0, {hash:{},data:data}); }
   else { helper = (depth0 && depth0.date); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
   buffer += escapeExpression(stack1)
-    + "</div>\n    </div>\n</div>";
+    + "</div>\n    </div>\n    <div class=\"pinPopup-bd\">\n        <div class=\"pinPopup-bd-sub\">";
+  if (helper = helpers.description) { stack1 = helper.call(depth0, {hash:{},data:data}); }
+  else { helper = (depth0 && depth0.description); stack1 = typeof helper === functionType ? helper.call(depth0, {hash:{},data:data}) : helper; }
+  buffer += escapeExpression(stack1)
+    + "</div>\n\n        ";
+  stack1 = helpers.each.call(depth0, (depth0 && depth0.posts), {hash:{},inverse:self.noop,fn:self.program(1, program1, data),data:data});
+  if(stack1 || stack1 === 0) { buffer += stack1; }
+  buffer += "\n\n    </div>\n</div>";
   return buffer;
   });
 
