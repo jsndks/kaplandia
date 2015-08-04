@@ -20,7 +20,7 @@
     "grunt-contrib-cssmin": "0.7.0",
     "grunt-bower-requirejs": "0.7.1",
     "grunt-contrib-requirejs": "0.4.1",
-    "grunt-sass": "~0.10.0",
+    "grunt-sass": "~0.18.0",
     "grunt-contrib-handlebars": "~0.7.0"
   },
   "scripts": {
